@@ -107,3 +107,8 @@ The other tables are described in `docs/evaluation.md`.
 `verification/` holds the checks that compare this code with the code and
 products behind the paper, on the same inputs (results in
 `verification/README.md`).
+
+## License
+
+MIT License (`LICENSE`). It covers the code and the network weights attached
+to the release.

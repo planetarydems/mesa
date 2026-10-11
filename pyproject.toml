@@ -7,7 +7,9 @@ name = "mader"
 version = "1.0.0"
 description = "MADER: an 18 m DEM of Mars from single CTX images"
 readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.9"
+classifiers = ["License :: OSI Approved :: MIT License"]
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.9",
