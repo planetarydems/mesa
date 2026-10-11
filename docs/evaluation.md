@@ -37,7 +37,10 @@ python -m mader.evaluate tables --samples tiles.csv --mola-tiles tiles_mola.csv 
 image that covers it (6,396 samples of the 359 pairs, 2,878 tiles). For each
 sample it records labelMAE, alignedMAE, the `<1 km` correlation and amplitude
 ratio, the relief of the stereo DEM over the window and how the window was
-anchored to the shots. `mola-tiles` scores MOLA as distributed on the same
+anchored to the shots. A test tile's image was registered to its stereo DEM
+when the archive was built, so the surface scored on a tile is already aligned
+and is not the deployed product: the tile rows have no deployMAE, and their
+error / relief is alignedMAE over the relief. `mola-tiles` scores MOLA as distributed on the same
 windows, once per tile. `tables` prints the Table 1 tile rows, the per-sample
 change from alignedMAE to labelMAE, the relief, the solar-incidence block of
 Table 2 (medians over samples by the incidence of the image) and the
@@ -92,9 +95,11 @@ images alone and does not depend on the model, so it is given in
 cubic-spline resampling), or a shift in whole pixels (24 pairs). The
 prediction and MOLA are warped onto the stereo DEM's grid with GDAL's bilinear
 kernel held at four pixels (`XSCALE=YSCALE=1`, GDAL 3.6 or later), which is
-what the grids of the paper used. `tables` prints the whole-image rows of
-Table 1 and the statistics of Section 3.1 (the change with co-registration,
-the level in place, the pairs poleward of 80 deg and the classes of relief).
+what the grids of the paper used. A whole image is scored as deployed, so its
+error / relief is deployMAE over the relief. `tables` prints the whole-image
+rows of Table 1 and the statistics of Section 3.1 (the change with
+co-registration, the level in place, the pairs poleward of 80 deg and the
+classes of relief).
 
 Expected values (epoch 88), all latitudes: labelMAE 9.8 m, alignedMAE 10.6 m,
 deployMAE 10.5 m, `<1 km` r 0.75 and amplitude 0.82, error 1.9 % of relief;
