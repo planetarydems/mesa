@@ -1,0 +1,6 @@
+stem,factor,reason
+F02_036736_2665,0.05,spice_placed
+P21_009124_2613,0.01,haze_A
+P21_009137_2615,0.05,haze_B
+P21_009176_2630,0.05,haze_B
+U16_077062_2650,0.05,haze_B+spice_placed

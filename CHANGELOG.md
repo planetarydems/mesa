@@ -1,5 +1,22 @@
 # Changelog
 
+## v3 chain (November 2026, tag `mesa-v3-code`)
+
+* New directory `v3/` with the scripts of the v3 production chain (tag
+  `ta_implicit_d1_spline100s1_e098v3`), copied verbatim from the cluster:
+  prediction adapter and queue runner, model metadata (config, checksums), the
+  per-box stages (leveling, CTX layer and infill, join, infill rule v2.2, seam
+  stage, relaxation, seam pass 2, QA), the fleet worker and sweeps, the per-box
+  frame weights, the polar comb correction and the reviewed-correction tools.
+  `PROVENANCE_v3.md` lists the source path and md5 of every file;
+  `v3/README.md` the order and settings of the stages; the README section
+  "v3 chain" the render rules, the error names and the product classes.
+* `VERIFY_v3.md`: replay of one production box (and the polar comb correction
+  of a second) from the copied scripts on a scratch copy of the inputs, with
+  the md5 of every output compared against production
+  (`v3/verification/check_box_v3.sbatch`).
+* Nothing in `mesa/`, `data/` or `docs/` changed for v3.
+
 ## 1.1.0 (unreleased, October 2026)
 
 Working tree after the author's decisions of 2026-10-14; not yet committed or tagged.

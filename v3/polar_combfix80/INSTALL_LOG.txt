@@ -1,0 +1,2 @@
+2026-10-29 15:03:18 EDT infill notch applied (user 10-29: sure redo it); backup ../backup_20261029_prenotch
+2026-10-30 15:58:38 EDT rule v3 installed by session polar-filter (user 10-30: implement the polar filter fix in v3); backup /home/gridsan/groups/planetary_dtm/mars_dem/global_run/v3_2026-10/polar_combfix80/backup_20261030_rule_v3

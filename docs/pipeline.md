@@ -5,6 +5,11 @@ numbers of the paper, with the exact settings used. Paths are examples. Steps
 marked *external* use ISIS or the Ames Stereo Pipeline (ASP) and are given as
 commands; everything else is in this package.
 
+This page describes release 1 (epoch 88). Release v3 (October 2026) used the
+same inputs and the stages under `v3/`; the README section "v3 chain" and
+`v3/README.md` list what changed (model, join, infill rule, seam repair, polar
+comb correction, reviewed local corrections).
+
 Software used for the release: ISIS 8, ASP 3.6.0, GDAL 3.9, Python 3.9-3.11,
 PyTorch 2.0, NumPy 1.24-1.26, SciPy 1.9-1.16, rasterio 1.4, OpenCV 4.7
 (registration only), Lightning 2.0 (infill training only), Shapely 2 and

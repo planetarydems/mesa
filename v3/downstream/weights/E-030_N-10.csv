@@ -1,0 +1,10 @@
+stem,factor,reason
+B03_010803_1759,0.05,haze_B
+B07_012359_1777,0.01,haze_A
+B07_012412_1778,0.01,haze_A
+B07_012504_1770,0.05,haze_B
+G04_019783_1720,0.05,haze_B
+G04_019849_1707,0.05,haze_B
+P06_003380_1757,0,haze_B+nontranslational+v3_excluded_where_covered
+P09_004369_1719,0.01,haze_A
+P11_005160_1764,0.01,haze_A

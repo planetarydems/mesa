@@ -1,0 +1,12 @@
+{
+ "tag": "ta_implicit_d1_spline100s1_e098v3",
+ "model_dir": "/home/gridsan/groups/planetary_dtm/mars_dem/models/v3_models/ta_impl_spline100_s1_fp32_e098",
+ "epoch": 98,
+ "upsample_mode": "spline_conv",
+ "down_mode": "maxpool",
+ "checkpoint_md5": "96de121dea9e271212a93df39d6b7f45",
+ "relief_film": true,
+ "relief_solve": true,
+ "skip_mode": "implicit",
+ "written": "2026-10-25 19:08:47"
+}
