@@ -3,7 +3,7 @@
 #SBATCH -N 1
 #SBATCH --cpus-per-task=8
 #SBATCH -t 01:00:00
-#SBATCH -J mader_field
+#SBATCH -J mesa_field
 #SBATCH -o %x_%j.out
 # Global CTX Mosaic corrections and the PEDR field (fit + apply) of the released code vs production.
 source /etc/profile 2>/dev/null; module load anaconda/2023a-pytorch 2>/dev/null

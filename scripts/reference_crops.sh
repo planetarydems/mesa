@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reference image of a product tile for mader.register (Text S8).
+# Reference image of a product tile for mesa.register (Text S8).
 #
 #   reference_crops.sh TILE OUT_DIR CONTROLLED_QUADS_DIR GLOBAL_CTX_DIR CORRECTIONS_CSV
 #
@@ -64,7 +64,7 @@ PY
 import csv, sys
 import rasterio
 from rasterio.transform import Affine
-from mader.register import write_vrt
+from mesa.register import write_vrt
 ref, vrt, tile, table = sys.argv[1:5]
 row = {r['tile']: r for r in csv.DictReader(open(table))}[tile]
 with rasterio.open(ref) as r:

@@ -2,7 +2,7 @@
 rows; Section 3.1 and Texts S7 and S10 of the paper).
 
 At each of the 359 test pairs one CTX image of the product, usually not one of
-the two images of the pair, was predicted whole by mader.predict in one product
+the two images of the pair, was predicted whole by mesa.predict in one product
 tile (pred_shot_anchor.tif: shot-anchored, before any levelling).
 data/test_images.csv names the image and the tile, the pair's latitude band and
 latitude (centre of the stereo DEM's grid), its stereo DEM and the
@@ -57,12 +57,12 @@ measures and error / relief. `tables` also gives the statistics of Section 3.1:
 the change of the error with co-registration, the level in place, the pairs
 poleward of 80 deg (|lat| >= 80) and the classes of in-place relief.
 
-    python -m mader.evaluate_images labels --root mars_ctx_dem_v4_pedr \\
+    python -m mesa.evaluate_images labels --root mars_ctx_dem_v4_pedr \\
         --manifest data/test_manifest_eq.csv,data/test_manifest_mid.csv,data/test_manifest_polar.csv \\
         --pairs data/test_pairs.txt --out labels
-    python -m mader.evaluate_images score --images data/test_images.csv --labels labels \\
+    python -m mesa.evaluate_images score --images data/test_images.csv --labels labels \\
         --preds preds --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --out images.csv
-    python -m mader.evaluate_images tables --scores images.csv --out images_tables.json
+    python -m mesa.evaluate_images tables --scores images.csv --out images_tables.json
 
 The predictions are read from PREDS/<tile>/<image>/pred_shot_anchor.tif.
 """
@@ -305,7 +305,7 @@ def print_tables(result):
           f'{"<1 km r":>8s} {"<1 km amp":>10s} {"err/relief %":>13s}')
     for k, c in result['table1_images'].items():
         label = f'{names[k]} ({c["pairs"]})'
-        print(f'{label:30s} {"MADER":6s} {c["label_mae"]:9.1f} {c["aligned_mae"]:11.1f} '
+        print(f'{label:30s} {"MESA":6s} {c["label_mae"]:9.1f} {c["aligned_mae"]:11.1f} '
               f'{c["deploy_mae"]:10.1f} {c["fine_r"]:8.2f} {c["fine_amp"]:10.2f} {c["error_relief_pct"]:13.1f}')
         print(f'{"":30s} {"MOLA":6s} {"-":>9s} {"-":>11s} {c["mola_mae"]:10.1f} {c["mola_fine_r"]:8.2f} '
               f'{c["mola_fine_amp"]:10.2f} {c["mola_error_relief_pct"]:13.1f}')

@@ -20,7 +20,7 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mader.model import load_model  # noqa: E402
+from mesa.model import load_model  # noqa: E402
 
 orig_code, run_dir, out_ckpt = sys.argv[1:4]
 sys.path.insert(0, orig_code)
@@ -45,7 +45,7 @@ released = {k: v for k, v in state.items() if k != 'mola_weight'}
 print(f"dropped from the checkpoint: {sorted(set(state) - set(released))} "
       f"(value {float(state['mola_weight']):.4f}; the parameter is never used by the implicit fusion)")
 torch.save({'model': released, 'epoch': ck.get('epoch'),
-            'note': 'MADER DEM network, epoch 88'}, out_ckpt)
+            'note': 'MESA DEM network, epoch 88'}, out_ckpt)
 clean = load_model(out_ckpt)
 n_orig = sum(p.numel() for p in orig.parameters())
 n_clean = sum(p.numel() for p in clean.parameters())
@@ -76,7 +76,7 @@ if torch.cuda.is_available():
     results.append(compare('random inputs', ctx, x, cond, 'cuda'))
 
 if len(sys.argv) > 5:
-    from mader.data import TileDataset
+    from mesa.data import TileDataset
     import random
     root, manifest = sys.argv[4:6]
     ds = TileDataset(root, manifest, split=None,

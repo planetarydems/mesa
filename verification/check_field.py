@@ -17,8 +17,8 @@ from pathlib import Path
 import rasterio
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mader.pedr_field import Field, shift_image, tile_vectors  # noqa: E402
-from mader.register import mosaic_corrections  # noqa: E402
+from mesa.pedr_field import Field, shift_image, tile_vectors  # noqa: E402
+from mesa.register import mosaic_corrections  # noqa: E402
 
 field_dir, corr_dir, boxes = sys.argv[1:4]
 tiles = sys.argv[4:]

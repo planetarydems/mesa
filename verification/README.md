@@ -1,5 +1,12 @@
 # Verification
 
+Current configuration (2026-10-16): prediction, evaluation, leveling and
+verification use the same nominal 168 m FWHM footprint.
+`anchor.PRODUCT_FOOTPRINT_M` is now an alias of `anchor.FOOTPRINT_M`.
+The results below record previous runs; this configuration edit does not
+regenerate their inputs or establish new bitwise agreement. Use a fresh
+output directory when rerunning checks so cached scores are not reused.
+
 Each script runs this code and the code that produced the paper and the mosaic
 on the same inputs, on the cluster where the products were made, and compares
 the outputs. "Bitwise" means identical arrays of floating-point numbers.
@@ -15,10 +22,10 @@ the original registration, OpenCV 4.7).
 | prediction | `check_predict.py` | 3 whole images (GPU and CPU): DEM, rescaled DEM, image and MOLA grids | bitwise |
 | registration | `check_register.py` | 10 images of an equatorial and a polar tile, both stages | within 5 µm (similarity), 1e-17 (refinement) |
 | PEDR field | `check_field.py` | Global CTX Mosaic corrections, 379 tile vectors, 300 shifted images | identical |
-| levelling | `check_tile_chain.py level` | offsets, levelled DEMs, weights and levelled mosaic of 2 tiles (57 and 138 DEMs) | bitwise |
+| leveling | `check_tile_chain.py level` | offsets, leveled DEMs, weights and leveled mosaic of 2 tiles (57 and 138 DEMs) | bitwise |
 | infill | `check_tile_chain.py infill` | infill surface and provenance of 2 tiles | provenance bitwise; surface within 1.5 mm |
 | join and de-seam | `check_tile_chain.py seams` | joined tile, seam mask, dominant-DEM index, de-seamed tile | bitwise |
-| global mosaic | `check_mosaic.py` | cross-tile levelling field and rendered DEM and mask of 4 tiles | bitwise |
+| global mosaic | `check_mosaic.py` | cross-tile leveling field and rendered DEM and mask of 4 tiles | bitwise |
 | uncertainty | `check_uncertainty.py` | look-up table; calibration of 8 test pairs, and of 8 more with infilled pixels; expected-error and class rasters of one tile | identical (bitwise) |
 | Table 1 (tiles), Table 2 | `check_evaluate.py` | every measure of 6,396 test samples; per-sample bin sums of 6,684 crops; every cell | identical (samples at the reference's rounding; bin sums and cells bitwise) |
 | Table 1 (whole images) | `check_images.py` | stereo DEMs, grids and every measure of the 359 pairs | identical; fine-scale measures within 1e-13 |
@@ -47,3 +54,51 @@ Notes.
 * Environments. The uncertainty calibration and the HiRISE scoring are checked
   in the environment they were run in (rasterio 1.4.3 with GDAL 3.6.2); the
   rest in PyTorch 2.0 with GDAL 3.9.3.
+
+## Version 1.1 (October 2026)
+
+* Name. The package is `mesa` (the product was renamed from MADER to MESA);
+  the checks above were run on version 1.0.0 as `mader`. Every module of
+  version 1.1 imports and prints its command-line help in the environments of
+  the checks (`import mesa.<module>`, `python -m mesa.<module> --help`,
+  revision job rev8_check 5923013 on xeon-p8, 2026-10-14: all 20 modules import
+  and print their help in the `planetary_dtm` environment (Python 3.11.13,
+  rasterio 1.4.3, GDAL 3.6.2) and in the `anaconda/2023a-pytorch` module
+  environment (Python 3.9.16, PyTorch 2.0.0+cu117)).
+* Shot-anchoring footprint. Version 1.0.0 anchored each prediction window to
+  the PEDR shots through a 150 m footprint (`anchor.FOOTPRINT_M = 150`); the
+  paper states 168 m and the leveling used 168 m. The released frames (epoch
+  88, October 2026) and the paper's tile scoring were computed with 150 m.
+  The initial version 1.1 verification scripts explicitly passed the old
+  150 m value to reproduce those comparisons. As of 2026-10-16 both scripts
+  use the common 168 m value; their next results must be recorded separately.
+  Effect of the change, measured on 3 whole test images predicted on CPU
+  nodes (the network run once, the windows anchored with each footprint, the
+  frames scored against the stereo DEM with `mesa.evaluate_images`, the
+  tile-merged labels and the registration of `data/test_images.csv`; job
+  5923013, 12 threads per image): B01_009956_2169 (Ep050_Np30, 549 windows,
+  18.0 M pixels) mean |168 m - 150 m| 0.049 m, median 0.031 m, 99th percentile
+  0.28 m, largest 0.80 m; deployMAE 13.252 -> 13.250 m, alignedMAE 13.083 ->
+  13.092 m, labelMAE 12.468 -> 12.473 m. B01_010092_2003 (E-050_Np20, 209
+  windows, 7.7 M pixels) mean 0.024 m, median 0.012 m, p99 0.19 m, largest
+  0.59 m; deployMAE 11.146 -> 11.142 m, alignedMAE 11.006 -> 11.001 m,
+  labelMAE 10.596 -> 10.589 m. V15_085759_1292 (E-070_N-60, 292 windows,
+  9.4 M pixels) mean 0.014 m, median 0.008 m, p99 0.10 m, largest 0.16 m;
+  deployMAE 17.176 -> 17.171 m, alignedMAE 15.724 -> 15.724 m, labelMAE 12.821
+  -> 12.826 m. The mean signed change is below 0.003 m on each image and every
+  window of the three images was fitted with both footprints. The 150 m
+  frames of this run differ from the production frames by at most 0.0012 m
+  (12 threads here against 8 in production; `check_predict.py` with the
+  production thread count is bitwise).
+* Footprint product. `mesa.footprints` was checked on the three tiles
+  E-020_N-30 (eqc, 118 images), Ep040_N-50 (sinu, 93) and E-020_Np80 (sinu,
+  7) against the per-tile census of the revision (Task 3,
+  `tile_frames_csv.py`, job 5923013): identical. For every image of the three
+  tiles the index, covered, sole and dominant pixel counts are the same, the
+  dominant and weight shares agree within 1e-9, and the product ids,
+  acquisition times and solar geometry are equal; the summaries agree
+  (1,094,998,893 / 788,641,373 / 49,998,675 predicted pixels, 65,198 / 58,773 /
+  32,230 without a dominant image, dominant shares summing to 0.99994 /
+  0.99993 / 0.99936, 50.8 / 52.7 / 13.2 % of predicted pixels from two or
+  more images, 0 images without an index date). Run time 359 s, 307 s and
+  30 s per tile on one node.

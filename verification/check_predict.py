@@ -1,4 +1,4 @@
-"""Check that the released prediction reproduces the production frames.
+"""Compare the current 168 m prediction with stored production frames.
 
     python verification/check_predict.py MODEL MOLA PEDR OUT_DIR PRODUCT_TAG BOXES_ROOT \
         BOX STEM IMAGE INC AZ [BOX STEM IMAGE INC AZ ...]
@@ -7,7 +7,9 @@ For each frame the released code predicts from the same registered image and
 the result is compared, file by file, with the production frame
 BOXES_ROOT/<BOX>/box_run/preds_<PRODUCT_TAG>/<STEM>/. Run it on the kind of
 node the frame was predicted on (GPU or CPU, same thread count), since
-floating-point results depend on the hardware.
+floating-point results depend on the hardware. Older products may use another
+anchoring footprint; differences remain visible rather than changing the
+comparison tolerance. See verification/README.md for the historical checks.
 """
 import sys
 import time
@@ -18,10 +20,11 @@ import rasterio
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mader.geo import MolaSampler  # noqa: E402
-from mader.model import load_model  # noqa: E402
-from mader.pedr import PedrDatabase  # noqa: E402
-from mader.predict import predict_image  # noqa: E402
+from mesa.geo import MolaSampler  # noqa: E402
+from mesa.model import load_model  # noqa: E402
+from mesa.pedr import PedrDatabase  # noqa: E402
+from mesa.predict import predict_image  # noqa: E402
+from mesa.anchor import FOOTPRINT_M  # noqa: E402
 
 model_path, mola_path, pedr_path, out_dir, tag, boxes = sys.argv[1:7]
 frames = [sys.argv[i:i + 5] for i in range(7, len(sys.argv), 5)]
@@ -34,7 +37,7 @@ worst = 0.0
 for box, stem, image, inc, az in frames:
     t0 = time.time()
     out = Path(out_dir) / box / stem
-    predict_image(image, float(inc), float(az), model, mola, pedr, str(out), device)
+    predict_image(image, float(inc), float(az), model, mola, pedr, str(out), device, FOOTPRINT_M)
     ref = Path(boxes) / box / 'box_run' / f'preds_{tag}' / stem
     for name in ('pred_shot_anchor.tif', 'pred_feather.tif', 'ctx_on_grid.tif', 'mola_on_grid.tif'):
         with rasterio.open(out / name) as a, rasterio.open(ref / name) as b:

@@ -16,7 +16,9 @@ MOLA_BINS_DIR   mola_<band>.npz of mola_dist_bins_359.py (MOLA as distributed by
 MOLA_TIF        the distributed MOLA mosaic
 
 The reference CSV rounds to 3 (MAE) and 4 (fine-scale) decimals; the released
-values, rounded the same way, must equal it.
+values, rounded the same way, must equal it for a matching configuration.
+This script now uses the common 168 m footprint. Historical reference tables
+may use an earlier footprint; mismatches remain visible at the same tolerance.
 """
 import csv
 import json
@@ -27,9 +29,10 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mader import evaluate as ev  # noqa: E402
-from mader.data import TileDataset, load_incidence  # noqa: E402
-from mader.model import load_model  # noqa: E402
+from mesa import evaluate as ev  # noqa: E402
+from mesa.data import TileDataset, load_incidence  # noqa: E402
+from mesa.model import load_model  # noqa: E402
+from mesa.anchor import FOOTPRINT_M  # noqa: E402
 
 model_path, root, man_dir, pairs_file, ref, mola_1k, mola_audit, mola_bins, mola_tif, out = sys.argv[1:11]
 out = Path(out)
@@ -44,7 +47,8 @@ ok = True
 samples_csv = out / 'tiles.csv'
 if not samples_csv.exists():
     incidence = load_incidence(str(Path(root) / 'ctx_overlapping_95pct_polar.json'))
-    rows = [ev.score_sample(model, r, root, incidence, device) for r in ev.read_rows(manifests, pairs)]
+    rows = [ev.score_sample(model, r, root, incidence, device, FOOTPRINT_M)
+            for r in ev.read_rows(manifests, pairs)]
     ev.write_csv(samples_csv, [r for r in rows if r is not None])
 mine = {(r['dem_tile'], r['ctx_product_id']): r for r in csv.DictReader(open(samples_csv))}
 prod_csv = Path(ref) / 'tiles' / 'e088_tile_1k_test359.csv'
@@ -91,7 +95,7 @@ for band, man in zip(('eq', 'mid', 'polar'), manifests):
     f = out / f'bins_{band}.npz'
     if not f.exists():
         ds = TileDataset(root, man, split=None, incidence_json=str(Path(root) / 'ctx_overlapping_95pct_polar.json'))
-        np.savez_compressed(f, **ev.bin_errors(model, ds, pairs, mola_tif, device))
+        np.savez_compressed(f, **ev.bin_errors(model, ds, pairs, mola_tif, device, footprint_m=FOOTPRINT_M))
     bin_files.append(f)
     a, b = np.load(f), np.load(Path(ref) / 'bins' / f'e088_359_{band}_med.npz')
     c = np.load(Path(mola_bins) / f'mola_{band}.npz')

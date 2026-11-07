@@ -16,7 +16,7 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mader.data import TileDataset  # noqa: E402
+from mesa.data import TileDataset  # noqa: E402
 
 orig_code, root, manifest = sys.argv[1:4]
 n_check = int(sys.argv[4]) if len(sys.argv) > 4 else 64

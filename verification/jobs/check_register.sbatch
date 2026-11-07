@@ -3,7 +3,7 @@
 #SBATCH -N 1
 #SBATCH --cpus-per-task=48
 #SBATCH -t 02:00:00
-#SBATCH -J mader_register
+#SBATCH -J mesa_register
 #SBATCH -o %x_%j.out
 # Registration (similarity + refinement) of the released code vs production, one equatorial and one polar tile.
 set -uo pipefail

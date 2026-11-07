@@ -1,11 +1,17 @@
 """Anchoring a predicted DEM to PEDR shots (Section 2.5 of the paper).
 
 A prediction rescaled with MOLA's statistics is compared with the shots through
-a Gaussian footprint (FWHM 150 m): the prediction is averaged through the
-footprint at each shot, and a gain a and offset b are fitted between these
-averages and the shot elevations by Huber-weighted iteratively reweighted least
-squares. Because the footprint kernel sums to one, averaging a*z + b equals
-a*average(z) + b, so the prediction is convolved once and the fit is 1-D.
+a Gaussian footprint (FOOTPRINT_M, 168 m full width at half maximum): the
+prediction is averaged through the footprint at each shot, and a gain a and
+offset b are fitted between these averages and the shot elevations by
+Huber-weighted iteratively reweighted least squares. Because the footprint
+kernel sums to one, averaging a*z + b equals a*average(z) + b, so the
+prediction is convolved once and the fit is 1-D.
+
+Anchoring, evaluation and leveling use the same nominal 168 m FWHM.
+PRODUCT_FOOTPRINT_M is retained as an alias for callers of earlier versions.
+Historical production comparisons are recorded in verification/README.md;
+changing the configured footprint does not regenerate stored products.
 
 Gates applied by the callers:
   * at least 10 shots, otherwise only the MOLA offset is applied;
@@ -19,7 +25,8 @@ import numpy as np
 from scipy.ndimage import correlate
 
 NODATA = -9999.0
-FOOTPRINT_M = 150.0
+FOOTPRINT_M = 168.0             # full width at half maximum of the footprint (Section 2.5)
+PRODUCT_FOOTPRINT_M = FOOTPRINT_M  # compatibility alias; use the common 168 m footprint
 MIN_SHOTS = 10
 MIN_SPREAD_M = 20.0
 RESID_REL = 2.0
@@ -95,7 +102,8 @@ def fit_gain_offset(pred, rows, cols, elev, pixel_size_m=18.0, footprint_m=FOOTP
             'spread': spread, 'offset_only': float(np.median(e - p)), 'n': int(p.size)}
 
 
-def anchor_window(pred, valid, mola_mean, mola_std, rows, cols, elev, pixel_size_m=18.0):
+def anchor_window(pred, valid, mola_mean, mola_std, rows, cols, elev, pixel_size_m=18.0,
+                  footprint_m=FOOTPRINT_M):
     """Delivered surface of one evaluation window, anchored as in the product.
 
     pred is the prediction rescaled with MOLA's mean and standard deviation over
@@ -110,7 +118,7 @@ def anchor_window(pred, valid, mola_mean, mola_std, rows, cols, elev, pixel_size
     if len(elev) < MIN_SHOTS:
         return pred + b_mola, 'few_shots'
     try:
-        fit = fit_gain_offset(pred, rows, cols, elev, pixel_size_m)
+        fit = fit_gain_offset(pred, rows, cols, elev, pixel_size_m, footprint_m)
     except ValueError:
         return pred + b_mola, 'fit_failed'
     a, b, how = fit['a'], fit['b'], 'affine'

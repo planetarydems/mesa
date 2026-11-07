@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=48
 #SBATCH --mem=180G
 #SBATCH -t 06:00:00
-#SBATCH -J mader_hirise
+#SBATCH -J mesa_hirise
 #SBATCH -o %x_%j.out
 # HiRISE evaluation (Tables 3 and 4, Section 3.2) of the released code vs the manuscript's epoch-88 scoring, in the Python
 # environment that scoring ran in (GDAL 3.6.2, NumPy 1.26, SciPy 1.16, PyTorch 2.5). ONLY=DEM[,DEM] checks a few windows.

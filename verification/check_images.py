@@ -32,8 +32,8 @@ import numpy as np
 import rasterio
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mader import evaluate_images as ei  # noqa: E402
-from mader.evaluate import read_rows, write_csv  # noqa: E402
+from mesa import evaluate_images as ei  # noqa: E402
+from mesa.evaluate import read_rows, write_csv  # noqa: E402
 
 root, man_dir, pairs_file, images_csv, labels_ref, preds, mola_tif, grids_ref, json_ref, out = sys.argv[1:11]
 jobs = int(sys.argv[11]) if len(sys.argv) > 11 else 16

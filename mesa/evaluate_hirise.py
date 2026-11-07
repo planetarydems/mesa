@@ -2,7 +2,7 @@
 Text S11).
 
 Each HiRISE DEM is compared with every DEM predicted from a single CTX image
-that covers it (the output of mader.predict, before levelling), one window per
+that covers it (the output of mesa.predict, before levelling), one window per
 CTX image. A window is the predicted DEM over the bounds of the HiRISE DEM
 plus 1.2 km (66 px). On its 18 m grid:
 
@@ -70,10 +70,10 @@ difference / sum pixels). Intervals are the 2.5 and 97.5 percentiles of the
 median over 2,000 resamplings of the DEMs (seed 0). Image shifts are given in
 ground metres (the window's projection scaled at its centre).
 
-    python -m mader.evaluate_hirise score --dems data/hirise_dems.csv --windows data/hirise_windows.csv \\
+    python -m mesa.evaluate_hirise score --dems data/hirise_dems.csv --windows data/hirise_windows.csv \\
         --stereo data/hirise_stereo_pairs.csv --test-pairs data/test_pairs.txt \\
         --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --out hirise_scores.csv --jobs 24
-    python -m mader.evaluate_hirise tables --dems data/hirise_dems.csv --scores hirise_scores.csv \\
+    python -m mesa.evaluate_hirise tables --dems data/hirise_dems.csv --scores hirise_scores.csv \\
         --out hirise_tables.json
 
 The tables of data/ give the 619 HiRISE DEMs (618 of them have a window with
@@ -87,11 +87,11 @@ hirise_dems.csv           one row per HiRISE DEM: dem, dem_path (the PDS
                           tile; blank beyond the search radius), pairs (test
                           stereo pairs over it, ';'-separated)
 hirise_windows.csv        one row per (HiRISE DEM, CTX image): dem, image,
-                          tile, prediction (directory written by mader.predict,
+                          tile, prediction (directory written by mesa.predict,
                           preds/<tile>/<image>), registered_image (the image it
                           was predicted from, aligned_pedr/<tile>/)
 hirise_stereo_pairs.csv   one row per stereo pair: pair, dem_path (its stereo
-                          DEM, labels/ from mader.evaluate_images labels),
+                          DEM, labels/ from mesa.evaluate_images labels),
                           orthoimages (its tied orthoimages, ';'-separated, in
                           the order tried)
 """
@@ -765,7 +765,7 @@ def tables(dems, scores):
 
 def print_tables(t):
     t3, t4 = t['table3'], t['table4']
-    names = dict(model='Our Model (MADER)', stereo='CTX stereo DEM (test set)', mola='MOLA gridded DEM')
+    names = dict(model='Our Model (MESA)', stereo='CTX stereo DEM (test set)', mola='MOLA gridded DEM')
     print('Table 3        labelMAE  alignedMAE  deployMAE  offset  error/relief')
     for part in 'abc':
         print(f'({part}) {t3[part]["dems"]} HiRISE DEMs')

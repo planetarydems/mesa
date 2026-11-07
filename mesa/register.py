@@ -23,7 +23,7 @@ the raw field's RMS, its linear part is below 1% and its translation below
 The result is written as a new geotransform: a VRT pointing at the unchanged
 pixels of the input image.
 
-    python -m mader.register --image mapped/B01_009956_2169_mapped.tif \
+    python -m mesa.register --image mapped/B01_009956_2169_mapped.tif \
         --reference reference_24m.tif --out aligned/B01_009956_2169_aligned.vrt
 """
 import argparse

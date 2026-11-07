@@ -31,7 +31,7 @@ import rasterio
 from rasterio.transform import Affine
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mader.register import coarse_fit, refine  # noqa: E402
+from mesa.register import coarse_fit, refine  # noqa: E402
 
 box, kind, boxes, out, n, orig_dir = sys.argv[1:7]
 n = int(n)

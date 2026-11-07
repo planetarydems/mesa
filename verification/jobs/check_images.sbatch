@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=48
 #SBATCH --mem=180G
 #SBATCH -t 01:00:00
-#SBATCH -J mader_images
+#SBATCH -J mesa_images
 #SBATCH -o %x_%j.out
 # Whole-image rows of Table 1 and the statistics of Section 3.1: the released evaluation against the manuscript's epoch-88 scoring.
 source /etc/profile 2>/dev/null; module load anaconda/2023a-pytorch 2>/dev/null
@@ -22,6 +22,6 @@ python3 -c "import rasterio, scipy, numpy; print('rasterio', rasterio.__version_
 python3 verification/check_images.py $V $A $C/data/test_pairs.txt $C/data/test_images.csv $P/labels $W/preds $MOLA \
   $W/grids_noshift $W/frames_json $O 16
 # the command line of the module on the scores just written
-python3 -m mader.evaluate_images tables --scores $O/images.csv --out $O/tables_cli.json > $O/tables_cli.txt && \
+python3 -m mesa.evaluate_images tables --scores $O/images.csv --out $O/tables_cli.json > $O/tables_cli.txt && \
   cmp -s $O/tables.json $O/tables_cli.json && echo "tables command: same JSON as the check" || echo "tables command: JSON DIFFERS"
 echo "=== done $(date)"

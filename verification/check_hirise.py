@@ -19,7 +19,7 @@ GROUP_DIR      hirise_dtm/, hirise_ori/, stereo_dems/, global_run/boxes/ and the
                MOLA mosaic
 PRED_ROOT      the epoch-88 predicted DEMs, <tile>/<image>/
 
-The input tables of mader.evaluate_hirise are built from these files, every
+The input tables of mesa.evaluate_hirise are built from these files, every
 HiRISE DEM of the sample is scored by the released code (records cached under
 OUT/records), and each window, each DEM and each table cell is compared with
 the manuscript's values. The per-DEM CSV rounds to 4 decimals.
@@ -38,7 +38,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mader import evaluate_hirise as eh  # noqa: E402
+from mesa import evaluate_hirise as eh  # noqa: E402
 
 ap = argparse.ArgumentParser()
 for k in ('ref', 'sample', 'placement', 'group', 'preds', 'out'):

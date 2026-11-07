@@ -17,9 +17,9 @@ great-circle distance, east and north averaged separately. It is evaluated at
 the centre of each image and added to the origin of its geotransform; images
 farther than 20 deg from any tile with a vector are not moved.
 
-    python -m mader.pedr_field measure --pairs overlaps.csv --out matches.csv
-    python -m mader.pedr_field fit --matches matches.csv --out field.json
-    python -m mader.pedr_field apply --field field.json --images 'aligned/*_aligned.vrt' --out aligned_pedr
+    python -m mesa.pedr_field measure --pairs overlaps.csv --out matches.csv
+    python -m mesa.pedr_field fit --matches matches.csv --out field.json
+    python -m mesa.pedr_field apply --field field.json --images 'aligned/*_aligned.vrt' --out aligned_pedr
 """
 import argparse
 import csv

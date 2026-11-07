@@ -30,8 +30,8 @@ import numpy as np
 import rasterio
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mader import uncertainty as U  # noqa: E402
-from mader.pedr import PedrDatabase  # noqa: E402
+from mesa import uncertainty as U  # noqa: E402
+from mesa.pedr import PedrDatabase  # noqa: E402
 
 calib, grids, labels, pedr_path, boxes, tag, layer_root, out, n_pairs, box = sys.argv[1:11]
 out = Path(out)

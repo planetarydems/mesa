@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=20
 #SBATCH --mem=150G
 #SBATCH -t 04:00:00
-#SBATCH -J mader_evaluate
+#SBATCH -J mesa_evaluate
 #SBATCH -o %x_%j.out
 # Table 1 tile rows and Table 2 of the released evaluation against the manuscript's epoch-88 scoring (V100, as the manuscript runs).
 source /etc/profile 2>/dev/null; module load anaconda/2023a-pytorch 2>/dev/null

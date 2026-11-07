@@ -30,7 +30,7 @@ def lambertian_shading(dem_m, sun, pixel_size=18.0, eps=1e-6):
     return torch.clamp(nx * s[:, 0:1] + ny * s[:, 1:2] + nz * s[:, 2:3], min=0.0)
 
 
-class MaderLoss(nn.Module):
+class MesaLoss(nn.Module):
 
     def __init__(self, grad_weight=0.5, photo_weight=0.3, tv_weight=0.01, pixel_size=18.0):
         super().__init__()

@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=48
 #SBATCH --mem=150G
 #SBATCH -t 02:00:00
-#SBATCH -J mader_check_cpu
+#SBATCH -J mesa_check_cpu
 #SBATCH -o %x_%j.out
 # Frames that production predicted on xeon-p8 nodes (CPU, 8 threads per frame), re-predicted with the released code.
 source /etc/profile 2>/dev/null; module load anaconda/2023a-pytorch 2>/dev/null

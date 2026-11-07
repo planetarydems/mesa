@@ -18,10 +18,10 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mader.data import TileDataset  # noqa: E402
-from mader.loss import MaderLoss  # noqa: E402
-from mader.model import MADER  # noqa: E402
-from mader.train import train_one_epoch  # noqa: E402
+from mesa.data import TileDataset  # noqa: E402
+from mesa.loss import MesaLoss  # noqa: E402
+from mesa.model import MESA  # noqa: E402
+from mesa.train import train_one_epoch  # noqa: E402
 
 orig_code, root, manifest = sys.argv[1:4]
 steps = int(sys.argv[4]) if len(sys.argv) > 4 else 4
@@ -81,7 +81,7 @@ torch.manual_seed(0)
 orig = FiLMUNetDualHead(in_channels=3, out_channels=1, depths=[64, 128, 256, 512], dropout=0.1,
                         use_attention=True, skip_mode='implicit', cg_iters=25, cg_mu=0.05,
                         relief_film=True, relief_solve=True)
-clean = MADER()
+clean = MESA()
 clean.load_state_dict({k: v for k, v in orig.state_dict().items() if k != 'mola_weight'}, strict=True)
 
 # original trainer
@@ -100,7 +100,7 @@ train_mars_ctx.train_epoch(FabricShim(), orig, Limited(orig_loader, steps), orig
 
 # released trainer
 clean_ds = TileDataset(root, manifest, 'train', incidence_json=incidence, augment=True)
-clean_loss = Recorder(MaderLoss())
+clean_loss = Recorder(MesaLoss())
 clean_opt = torch.optim.AdamW(clean.parameters(), lr=1e-4, weight_decay=1e-5)
 reset_random_state()
 clean_loader = torch.utils.data.DataLoader(clean_ds, batch_size=batch_size, shuffle=True, drop_last=True,

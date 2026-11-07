@@ -19,8 +19,8 @@ deseam           repairs the steps that blending leaves where two predicted
                  160 px of the seam. A splice is kept only if it reduces the
                  step measure by at least 20%.
 
-    python -m mader.seams merge --dem leveled.tif --model infill.model.tif --out final.tif
-    python -m mader.seams deseam --final final.tif --prov infill.prov.tif --frames 'leveled/*_leveled.tif' \
+    python -m mesa.seams merge --dem leveled.tif --model infill.model.tif --out final.tif
+    python -m mesa.seams deseam --final final.tif --prov infill.prov.tif --frames 'leveled/*_leveled.tif' \
         --out deseam.tif
 """
 import argparse

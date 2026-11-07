@@ -13,10 +13,10 @@ train    synthetic gaps are drawn from the census (an oriented capsule with a
          Loss: Huber (delta 1) on standardised elevation inside the gap; the
          fine network also on the visible pixels with weight 0.25.
 
-    python -m mader.infill_train census --tiles-root tiles --out holes.npz
-    python -m mader.infill_train store --dem tiles/X/leveled.tif --ctx tiles/X/ctx_18m.tif --mola MOLA.tif \
+    python -m mesa.infill_train census --tiles-root tiles --out holes.npz
+    python -m mesa.infill_train store --dem tiles/X/leveled.tif --ctx tiles/X/ctx_18m.tif --mola MOLA.tif \
         --out store --tile X --split train --stride 1024 --coarse-only --min-valid 0.4
-    python -m mader.infill_train train --stage coarse --store store --holes holes.npz --out runs/coarse ...
+    python -m mesa.infill_train train --stage coarse --store store --holes holes.npz --out runs/coarse ...
 
 Training ran on two nodes with two V100 GPUs each (Lightning Fabric, 16-bit
 mixed precision, batch 8 per GPU); see docs/pipeline.md for the exact runs.

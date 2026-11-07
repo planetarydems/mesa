@@ -15,7 +15,7 @@ import numpy as np
 import rasterio
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mader import mosaic  # noqa: E402
+from mesa import mosaic  # noqa: E402
 
 boxes, tag, prod, mola_path, out = sys.argv[1:6]
 tiles = sys.argv[6:]

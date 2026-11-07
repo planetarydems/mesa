@@ -19,7 +19,7 @@ import numpy as np
 import rasterio
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mader import infill, level, seams  # noqa: E402
+from mesa import infill, level, seams  # noqa: E402
 
 stage, box, tag, boxes, out = sys.argv[1:6]
 mola, pedr = sys.argv[6:8]

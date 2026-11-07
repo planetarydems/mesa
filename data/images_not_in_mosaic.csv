@@ -1,0 +1,21 @@
+tile,image,incidence,azimuth,reason
+E-040_Np10,B01_009867_1955,48.34,285.11,"prediction failed: 18 m grid 897x149 px, smaller than the 384 px window"
+E-040_Np10,B18_016724_1989,41.45,279.53999999999996,"prediction failed: 18 m grid 1167x69 px, smaller than the 384 px window"
+E-040_Np10,G05_020113_1995,56.2,256.9,"prediction failed: 18 m grid 1327x100 px, smaller than the 384 px window"
+E-040_Np10,P12_005859_1910,38.75,239.18,"prediction failed: 18 m grid 3328x329 px, smaller than the 384 px window"
+Ep040_N-20,G19_025754_1628,59.81,309.4,"prediction failed: 18 m grid 683x342 px, smaller than the 384 px window"
+Ep040_N-20,V21_088194_1689,62.17,306.65999999999997,"prediction failed: 18 m grid 684x343 px, smaller than the 384 px window"
+Ep050_N-30,V21_087996_1492,74.19,312.7,"prediction failed: 18 m grid 685x344 px, smaller than the 384 px window"
+Ep090_N-30,P15_006962_1586,49.4,303.35,"prediction failed: 18 m grid 1704x343 px, smaller than the 384 px window"
+Ep100_Np20,B19_017220_1990,43.5,285.08000000000004,"prediction failed: 18 m grid 342x342 px, smaller than the 384 px window"
+Ep100_Np20,U23_080043_2077,46.34,277.65999999999997,"prediction failed: 18 m grid 342x342 px, smaller than the 384 px window"
+Ep160_Np20,J16_050909_2103,39.65,240.06000000000003,"prediction failed: 18 m grid 1371x345 px, smaller than the 384 px window"
+Ep170_N-10,B04_011310_1699,58.35,276.61,"prediction failed: 18 m grid 3265x165 px, smaller than the 384 px window"
+Ep170_N-10,D02_028136_1708,59.0,292.48,"prediction failed: 18 m grid 4286x192 px, smaller than the 384 px window"
+Ep170_N-10,G05_020224_1704,55.61,274.65,"prediction failed: 18 m grid 2876x201 px, smaller than the 384 px window"
+Ep170_N-10,G09_021701_1761,48.56,240.57000000000002,prediction failed: no 384 px window with 25 % valid image
+Ep170_N-10,G23_027358_1696,59.39,304.18,"prediction failed: 18 m grid 3840x54 px, smaller than the 384 px window"
+Ep170_N-10,P16_007460_1688,50.39,301.1,"prediction failed: 18 m grid 2892x325 px, smaller than the 384 px window"
+Ep170_N-10,U09_074515_1706,50.55,246.84,"prediction failed: 18 m grid 2329x113 px, smaller than the 384 px window"
+E-050_Np30,B21_017898_2098,43.05,276.24,prediction failed: no 384 px window with 25 % valid image
+E-030_N-80,K11_057695_1007,59.55,307.40000000000003,"prediction failed: 18 m grid 3554x313 px, smaller than the 384 px window"

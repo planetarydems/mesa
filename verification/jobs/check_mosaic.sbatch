@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=48
 #SBATCH --mem=180G
 #SBATCH -t 06:00:00
-#SBATCH -J mader_mosaic
+#SBATCH -J mesa_mosaic
 #SBATCH -o %x_%j.out
 # Global-mosaic stages (coarse, level, render) of the released code vs the production e088 mosaic.
 unset PROJ_DATA PROJ_LIB

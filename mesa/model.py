@@ -1,4 +1,4 @@
-"""The MADER network.
+"""The MESA network.
 
 A U-Net (Ronneberger et al., 2015) that maps a CTX image, the MOLA gridded DEM
 and the shot-distance layer to elevation and albedo. Two additions to the plain
@@ -24,6 +24,7 @@ Tensor layout throughout: [batch, channel, row, column], rows increasing to the
 south and columns to the east. Elevations are standardised per window.
 """
 import math
+from pathlib import Path
 
 import torch
 import torch.nn as nn
@@ -247,7 +248,7 @@ class MolaFusion(nn.Module):
 # The network
 # ---------------------------------------------------------------------------
 
-class MADER(nn.Module):
+class MESA(nn.Module):
     """U-Net with illumination conditioning, a DEM + albedo head and MOLA fusion.
 
     forward(ctx, x, cond) with
@@ -318,12 +319,29 @@ class MADER(nn.Module):
         return z, torch.sigmoid(out[:, 1:2])
 
 
+RELEASED_WEIGHTS = ('mesa_e088.pt', 'mader_e088.pt')    # one file; v1.0.0 published it under the former name
+
+
+def weights_path(path):
+    """The weight file to load. A missing `mesa_e088.pt` falls back to
+    `mader_e088.pt` in the same directory, the name of the v1.0.0 release
+    asset, and the other way round."""
+    p = Path(path)
+    if p.exists() or p.name not in RELEASED_WEIGHTS:
+        return p
+    for name in RELEASED_WEIGHTS:
+        if p.with_name(name).exists():
+            return p.with_name(name)
+    return p
+
+
 def load_model(path, device='cpu'):
-    """Build MADER and load released weights (a file written by train.py or the
-    released checkpoint). Refuses a partial load."""
-    ckpt = torch.load(path, map_location='cpu', weights_only=False)
+    """Build MESA and load released weights (a file written by train.py or the
+    released checkpoint, `mesa_e088.pt`, also accepted under its v1.0.0 name
+    `mader_e088.pt`). Refuses a partial load."""
+    ckpt = torch.load(weights_path(path), map_location='cpu', weights_only=False)
     state = ckpt['model'] if isinstance(ckpt, dict) and 'model' in ckpt else ckpt
     state = {k.removeprefix('_forward_module.').removeprefix('module.'): v for k, v in state.items()}
-    model = MADER()
+    model = MESA()
     model.load_state_dict(state, strict=True)
     return model.to(device).eval()

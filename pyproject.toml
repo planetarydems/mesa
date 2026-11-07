@@ -3,9 +3,9 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mader"
-version = "1.0.0"
-description = "MADER: an 18 m DEM of Mars from single CTX images"
+name = "mesa"
+version = "1.1.0"
+description = "MESA, Mars Elevation from Shading and Altimetry: an 18 m DEM of Mars from single CTX images"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.9"
@@ -23,4 +23,4 @@ register = ["opencv-python-headless>=4.7"]
 infill-train = ["lightning>=2.0"]
 
 [tool.setuptools]
-packages = ["mader"]
+packages = ["mesa"]

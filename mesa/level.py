@@ -18,7 +18,7 @@ Tiles within 30 S to 30 N are on the global equirectangular grid; images
 registered in a sinusoidal projection are warped onto it first. Tiles poleward
 of that use a sinusoidal projection centred on the tile.
 
-    python -m mader.level --tile E-030_N-10 --frames 'preds/*/pred_shot_anchor.tif' \
+    python -m mesa.level --tile E-030_N-10 --frames 'preds/*/pred_shot_anchor.tif' \
         --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --pedr pedr.sqlite \
         --exclude-orbits orbit_screen/E-030_N-10.txt --out tiles/E-030_N-10
 """
@@ -40,14 +40,14 @@ from rasterio.warp import calculate_default_transform, reproject
 from rasterio.windows import Window
 from scipy.ndimage import distance_transform_edt
 
-from .anchor import footprint_average, footprint_kernel
+from .anchor import FOOTPRINT_M, footprint_average, footprint_kernel
 from .geo import FULL_LON, R_MARS, lonlat_to_xy, parse_crs
 from .pedr import PedrDatabase
 
 NODATA = -9999.0
 PIXEL = 18.0
 EQC = CRS.from_proj4('+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +R=3396190 +units=m +no_defs')
-FOOTPRINT_M = 168.0
+# the shot footprint is anchor.FOOTPRINT_M (168 m); the levelling has always used this value
 MIN_SHOTS = 8
 OVERLAP_RES = 90.0
 MIN_OVERLAP_PX = 200

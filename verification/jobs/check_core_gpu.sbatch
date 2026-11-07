@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=20
 #SBATCH --mem=150G
 #SBATCH -t 04:00:00
-#SBATCH -J mader_check_gpu
+#SBATCH -J mesa_check_gpu
 #SBATCH -o %x_%j.out
 # Equivalence checks of the released code against production, GPU node (SuperCloud):
 # network, data loader, training steps, the frame that production predicted on a V100, and the tile evaluation.

@@ -1,14 +1,18 @@
 # Reproducing the evaluation
 
 This page gives, for each table of the paper, the command that computes it and
-the inputs it needs. The network is `mader_e088.pt`; the test set is the 359
-stereo pairs of `data/test_pairs.txt`. Medians are over samples (tiles), test
-pairs (whole images) or HiRISE DEMs, as in the table captions.
+the inputs it needs. The network is `mesa_e088.pt` (`mader_e088.pt` in release
+v1.0.0, either name loads); the test set is the 359 stereo pairs of
+`data/test_pairs.txt`. Medians are over samples (tiles), test pairs (whole
+images) or HiRISE DEMs, as in the table captions. `mesa.evaluate tiles`,
+`mesa.evaluate bins`, `mesa.predict`, and the verification scripts use the
+common 168 m Gaussian FWHM, as in Section 2.5. The historical comparison
+records and sensitivity measurements are retained in `verification/README.md`.
 
 Resampling with GDAL is part of several steps, and GDAL's bilinear warp has
 changed between versions where the two grids differ in scale. The numbers of
 the paper were computed with GDAL 3.9 (tiles), 3.13 (the grids of the whole
-images; `mader.evaluate_images` reproduces them with GDAL 3.6 or later) and
+images; `mesa.evaluate_images` reproduces them with GDAL 3.6 or later) and
 3.6 (HiRISE and the uncertainty calibration); with another version the
 resampled values can differ by about a centimetre.
 
@@ -19,17 +23,17 @@ Inputs: the training archive (`dem/`, `ctx/`, `mola_bilinear/`, `d1_shot/`,
 and the MOLA gridded DEM as distributed.
 
 ```bash
-python -m mader.evaluate tiles --model mader_e088.pt --root mars_ctx_dem_v4_pedr \
+python -m mesa.evaluate tiles --model mesa_e088.pt --root mars_ctx_dem_v4_pedr \
     --manifest data/test_manifest_eq.csv,data/test_manifest_mid.csv,data/test_manifest_polar.csv \
     --pairs data/test_pairs.txt --out tiles.csv
-python -m mader.evaluate mola-tiles --root mars_ctx_dem_v4_pedr --samples tiles.csv \
+python -m mesa.evaluate mola-tiles --root mars_ctx_dem_v4_pedr --samples tiles.csv \
     --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --out tiles_mola.csv
 for band in eq mid polar; do
-  python -m mader.evaluate bins --model mader_e088.pt --root mars_ctx_dem_v4_pedr \
+  python -m mesa.evaluate bins --model mesa_e088.pt --root mars_ctx_dem_v4_pedr \
       --manifest data/test_manifest_$band.csv --pairs data/test_pairs.txt \
       --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --out bins_$band.npz
 done
-python -m mader.evaluate tables --samples tiles.csv --mola-tiles tiles_mola.csv --pairs data/test_pairs.txt \
+python -m mesa.evaluate tables --samples tiles.csv --mola-tiles tiles_mola.csv --pairs data/test_pairs.txt \
     --bins bins_eq.npz bins_mid.npz bins_polar.npz --out tables_tiles.json
 ```
 
@@ -77,16 +81,16 @@ bin with the scoring behind the paper.
 
 Inputs: the stereo DEMs of the test pairs, rebuilt from the test tiles of the
 archive (`labels`), the whole-image predictions of the images named in
-`data/test_images.csv` (`mader.predict`, one per pair, written to
+`data/test_images.csv` (`mesa.predict`, one per pair, written to
 `preds/<tile>/<image>/`), and the MOLA gridded DEM as distributed.
 
 ```bash
-python -m mader.evaluate_images labels --root mars_ctx_dem_v4_pedr \
+python -m mesa.evaluate_images labels --root mars_ctx_dem_v4_pedr \
     --manifest data/test_manifest_eq.csv,data/test_manifest_mid.csv,data/test_manifest_polar.csv \
     --pairs data/test_pairs.txt --out labels
-python -m mader.evaluate_images score --images data/test_images.csv --labels labels --preds preds \
+python -m mesa.evaluate_images score --images data/test_images.csv --labels labels --preds preds \
     --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --out images.csv
-python -m mader.evaluate_images tables --scores images.csv --out tables_images.json
+python -m mesa.evaluate_images tables --scores images.csv --out tables_images.json
 ```
 
 The co-registration of each image with its stereo DEM was measured from the
@@ -110,17 +114,17 @@ MOLA 18.4 m, 0.33, 0.40, 3.2 %.
 Inputs, laid out as the tables in `data/` expect (paths relative to the
 working directory): the HiRISE DTMs and their orthoimages from the PDS
 (`hirise_dtm/`, `hirise_ortho/`, each JP2 with its `.LBL`), the predictions of
-the CTX images over them (`preds/<tile>/<image>/`, from `mader.predict`) and
+the CTX images over them (`preds/<tile>/<image>/`, from `mesa.predict`) and
 the registered images they were predicted from (`aligned_pedr/<tile>/`), the
-stereo DEMs of the test pairs (`labels/`, from `mader.evaluate_images labels`)
+stereo DEMs of the test pairs (`labels/`, from `mesa.evaluate_images labels`)
 and their tied orthoimages (`orthoimages/`), and the MOLA gridded DEM as
 distributed.
 
 ```bash
-python -m mader.evaluate_hirise score --dems data/hirise_dems.csv --windows data/hirise_windows.csv \
+python -m mesa.evaluate_hirise score --dems data/hirise_dems.csv --windows data/hirise_windows.csv \
     --stereo data/hirise_stereo_pairs.csv --test-pairs data/test_pairs.txt \
     --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --out hirise_scores.csv --jobs 24
-python -m mader.evaluate_hirise tables --dems data/hirise_dems.csv --scores hirise_scores.csv \
+python -m mesa.evaluate_hirise tables --dems data/hirise_dems.csv --scores hirise_scores.csv \
     --out tables_hirise.json
 ```
 

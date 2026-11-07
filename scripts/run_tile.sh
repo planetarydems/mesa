@@ -15,7 +15,7 @@ mkdir -p "$OUT"
 
 # 1. levelling and feather blend -> leveled.tif, leveled/, leveled_offsets.csv
 SCREEN="$DATA/orbit_screen/$TILE.txt"
-python3 -m mader.level --tile "$TILE" --frames "$PREDS/*/pred_shot_anchor.tif" --mola "$MOLA" --pedr "$PEDR" \
+python3 -m mesa.level --tile "$TILE" --frames "$PREDS/*/pred_shot_anchor.tif" --mola "$MOLA" --pedr "$PEDR" \
     ${JOBS:+--jobs $JOBS} $( [ -s "$SCREEN" ] && echo --exclude-orbits "$SCREEN" ) --out "$OUT"
 
 # 2. CTX layer of the infill: the Global CTX Mosaic averaged onto the levelled grid (byte, no-data 0)
@@ -30,10 +30,10 @@ gdalwarp -t_srs "$OUT/.tile_crs.wkt" -te "$L" "$B" "$R" "$T" -ts "$W" "$H" -r av
     "$OUT/.global_ctx.vrt" "$OUT/ctx_18m.tif"
 
 # 3. infill (GPU if available) -> infill.model.tif, infill.prov.tif
-python3 -m mader.infill --dem "$OUT/leveled.tif" --ctx "$OUT/ctx_18m.tif" --mola "$MOLA" \
+python3 -m mesa.infill --dem "$OUT/leveled.tif" --ctx "$OUT/ctx_18m.tif" --mola "$MOLA" \
     --coarse "$INFILL_COARSE" --fine "$INFILL_FINE" --out "$OUT/infill"
 
 # 4. join along a minimum-cost boundary -> final.tif; repair butt-joint steps -> deseam.tif
-python3 -m mader.seams merge --dem "$OUT/leveled.tif" --model "$OUT/infill.model.tif" --out "$OUT/final.tif"
-python3 -m mader.seams deseam --final "$OUT/final.tif" --prov "$OUT/infill.prov.tif" \
+python3 -m mesa.seams merge --dem "$OUT/leveled.tif" --model "$OUT/infill.model.tif" --out "$OUT/final.tif"
+python3 -m mesa.seams deseam --final "$OUT/final.tif" --prov "$OUT/infill.prov.tif" \
     --frames "$OUT/leveled/*_leveled.tif" --out "$OUT/deseam.tif" ${JOBS:+--jobs $JOBS}

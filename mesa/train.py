@@ -1,4 +1,4 @@
-"""Train MADER (Section 2.4 of the paper).
+"""Train MESA (Section 2.4 of the paper).
 
 AdamW (lr 1e-4, weight decay 1e-5), batch 16, 100 epochs, cosine decay of the
 learning rate to 1e-6 (stepped once per epoch), gradient norm clipped at 1,
@@ -6,12 +6,12 @@ single precision with TF32 matrix products. Each epoch is checkpointed; the
 released model is the epoch with the lowest validation MAE in metres
 (checkpoints/best.pt here).
 
-    python -m mader.train --root /data/mars_ctx_dem_v4_pedr \
+    python -m mesa.train --root /data/mars_ctx_dem_v4_pedr \
         --manifest /data/mars_ctx_dem_v4_pedr/manifest_v4sT_ge10.csv \
         --incidence-json /data/mars_ctx_dem_v4_pedr/ctx_overlapping_95pct_polar.json \
-        --out runs/mader --seed 1
+        --out runs/mesa --seed 1
 
-An interrupted run continues with --resume runs/mader/checkpoints/epoch_NNN.pt.
+An interrupted run continues with --resume runs/mesa/checkpoints/epoch_NNN.pt.
 """
 import argparse
 import json
@@ -25,8 +25,8 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from .data import TileDataset
-from .loss import MaderLoss
-from .model import MADER
+from .loss import MesaLoss
+from .model import MESA
 
 
 def to_device(batch, device):
@@ -106,12 +106,12 @@ def main():
     val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False,
                             num_workers=args.num_workers, pin_memory=True)
 
-    model = MADER().to(device)
-    loss_fn = MaderLoss().to(device)
+    model = MESA().to(device)
+    loss_fn = MesaLoss().to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs,
                                                            eta_min=args.lr * 0.01)
-    print(f'MADER: {sum(p.numel() for p in model.parameters()):,} parameters')
+    print(f'MESA: {sum(p.numel() for p in model.parameters()):,} parameters')
 
     start, history, best = 0, [], float('inf')
     if args.resume:

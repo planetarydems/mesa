@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=96G
 #SBATCH -t 03:00:00
-#SBATCH -J mader_uncert
+#SBATCH -J mesa_uncert
 #SBATCH -o %x_%j.out
 # Uncertainty layer of the released code against the production layer of the previous mosaic (epoch 98),
 # in the environment the layer was made in (rasterio 1.4.3 with GDAL 3.6.2: the bilinear warp of the infill

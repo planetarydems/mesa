@@ -33,15 +33,15 @@ weighted by its pixels in the bin. The disagreement is measured with the MOLA
 input of the network (the half-cell corrected grid); the MOLA row of the
 shot-distance block scores MOLA as distributed on the same crops.
 
-    python -m mader.evaluate tiles --model mader_e088.pt --root mars_ctx_dem_v4_pedr \\
+    python -m mesa.evaluate tiles --model mesa_e088.pt --root mars_ctx_dem_v4_pedr \\
         --manifest data/test_manifest_eq.csv,data/test_manifest_mid.csv,data/test_manifest_polar.csv \\
         --pairs data/test_pairs.txt --out tiles.csv
-    python -m mader.evaluate mola-tiles --root mars_ctx_dem_v4_pedr --samples tiles.csv \\
+    python -m mesa.evaluate mola-tiles --root mars_ctx_dem_v4_pedr --samples tiles.csv \\
         --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --out tiles_mola.csv
-    python -m mader.evaluate bins --model mader_e088.pt --root mars_ctx_dem_v4_pedr \\
+    python -m mesa.evaluate bins --model mesa_e088.pt --root mars_ctx_dem_v4_pedr \\
         --manifest data/test_manifest_eq.csv --pairs data/test_pairs.txt \\
         --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --out bins_eq.npz          (also _mid, _polar)
-    python -m mader.evaluate tables --samples tiles.csv --mola-tiles tiles_mola.csv --pairs data/test_pairs.txt \\
+    python -m mesa.evaluate tables --samples tiles.csv --mola-tiles tiles_mola.csv --pairs data/test_pairs.txt \\
         --bins bins_eq.npz bins_mid.npz bins_polar.npz
 """
 import argparse
@@ -61,7 +61,7 @@ from rasterio.warp import reproject
 from scipy.ndimage import binary_erosion, convolve1d
 from torch.utils.data import DataLoader, Dataset
 
-from .anchor import anchor_window
+from .anchor import FOOTPRINT_M, anchor_window
 from .data import TileDataset, load_incidence
 from .model import load_model, relief_rho
 
@@ -209,7 +209,7 @@ def tile_shots(path):
 
 
 @torch.no_grad()
-def score_sample(model, row, root, incidence, device):
+def score_sample(model, row, root, incidence, device, footprint_m=FOOTPRINT_M):
     """Table 1 measures of one sample on the central window of its tile, or None
     if the tile is incomplete or less than half covered by the stereo DEM."""
     root = Path(root)
@@ -248,7 +248,7 @@ def score_sample(model, row, root, incidence, device):
         r, c = r - y0, c - x0
         inside = (c >= 0) & (c < WINDOW) & (r >= 0) & (r < WINDOW)
         rows, cols, elev = r[inside], c[inside], e[inside]
-    surface, how = anchor_window(pred_mola, valid, mmean, mstd, rows, cols, elev, abs(transform.a))
+    surface, how = anchor_window(pred_mola, valid, mmean, mstd, rows, cols, elev, abs(transform.a), footprint_m)
     fine = fine_structure(surface, ref, valid)
     return dict(pair_short=row['pair_short'], dem_tile=row['dem_tile'], ctx_product_id=row.get('ctx_product_id', ''),
                 incidence_deg=inc, label_mae=mae(pred_dem, ref, valid), aligned_mae=mae(surface, ref, valid),
@@ -336,7 +336,8 @@ class WithDistributedMola(Dataset):
 
 
 @torch.no_grad()
-def bin_errors(model, dataset, keep_pairs, mola_path, device, batch_size=16, num_workers=8, seed=0):
+def bin_errors(model, dataset, keep_pairs, mola_path, device, batch_size=16, num_workers=8, seed=0,
+               footprint_m=FOOTPRINT_M):
     """Per sample and bin of each Table 2 axis, the sums of the labelMAE and
     alignedMAE errors and the number of pixels ([samples, bins, 3]); for
     'mola_shot_distance', the sum of the error of MOLA as distributed and the
@@ -381,7 +382,8 @@ def bin_errors(model, dataset, keep_pairs, mola_path, device, batch_size=16, num
             rr, cc = np.nonzero(shot_mask[i])
             v = vn[i] if vn[i].any() else np.ones_like(vn[i])
             surface[i], _ = anchor_window(pn[i] * mstd + mmean, v, mmean, mstd, rr.astype(np.float64),
-                                          cc.astype(np.float64), shot_m[i][shot_mask[i]], pixel_size[tile])
+                                          cc.astype(np.float64), shot_m[i][shot_mask[i]], pixel_size[tile],
+                                          footprint_m)
         erra = (torch.from_numpy(surface).to(device, torch.float32).unsqueeze(1) - dem_m).abs()
 
         # the MOLA input (half-cell corrected) defines the disagreement; MOLA as
@@ -549,6 +551,8 @@ def main():
     t.add_argument('--pairs', required=True, help='test pairs to score')
     t.add_argument('--incidence-json', default=None, help='default: ROOT/ctx_overlapping_95pct_polar.json')
     t.add_argument('--out', required=True)
+    t.add_argument('--footprint', type=float, default=FOOTPRINT_M,
+                   help='shot footprint FWHM in metres (default %(default)s)')
     m = sub.add_parser('mola-tiles', help='MOLA as distributed on the same windows')
     m.add_argument('--root', required=True)
     m.add_argument('--samples', required=True, help='output of the tiles command')
@@ -563,6 +567,8 @@ def main():
     b.add_argument('--mola', required=True, help='Mars_MGS_MOLA_DEM_mosaic_global_463m.tif')
     b.add_argument('--incidence-json', default=None)
     b.add_argument('--out', required=True, help='.npz')
+    b.add_argument('--footprint', type=float, default=FOOTPRINT_M,
+                   help='shot footprint FWHM in metres (default %(default)s)')
     s = sub.add_parser('tables', help='Table 1 tile rows and Table 2 from the outputs above')
     s.add_argument('--samples', required=True)
     s.add_argument('--mola-tiles', required=True)
@@ -581,7 +587,7 @@ def main():
         rows = read_rows(args.manifest.split(','), pairs)
         out = []
         for k, row in enumerate(rows):
-            r = score_sample(model, row, args.root, incidence, device)
+            r = score_sample(model, row, args.root, incidence, device, args.footprint)
             if r is not None:
                 out.append(r)
             if (k + 1) % 500 == 0:
@@ -596,7 +602,8 @@ def main():
         print(f'{len(out)} tiles')
     elif args.cmd == 'bins':
         dataset = TileDataset(args.root, args.manifest, split=None, incidence_json=inc_json)
-        np.savez_compressed(args.out, **bin_errors(model, dataset, pairs, args.mola, device))
+        np.savez_compressed(args.out, **bin_errors(model, dataset, pairs, args.mola, device,
+                                                   footprint_m=args.footprint))
     else:
         pairs = set(open(args.pairs).read().split())
         result = {'table1_tiles': table1_tiles(list(csv.DictReader(open(args.samples))),

@@ -8,13 +8,16 @@ to metres with MOLA's mean and standard deviation over the window, then fitted
 to the PEDR shots (gain and offset, see anchor.py). The windows are blended
 with a Hann weight.
 
-    python -m mader.predict --image aligned_pedr/B01_009956_2169_aligned.vrt \
-        --inc 45.45 --az 262.89 --model mader_e088.pt \
+    python -m mesa.predict --image aligned_pedr/B01_009956_2169_aligned.vrt \
+        --inc 45.45 --az 262.89 --model mesa_e088.pt \
         --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --pedr pedr.sqlite \
         --out preds/B01_009956_2169
 
 Writes pred_shot_anchor.tif (the product), pred_feather.tif (MOLA statistics
 only, no shots), ctx_on_grid.tif and mola_on_grid.tif.
+
+The shots are compared with the prediction through a 168 m Gaussian footprint
+(anchor.FOOTPRINT_M), matching the evaluation and leveling configuration.
 """
 import argparse
 import math
@@ -125,7 +128,7 @@ def predict_window(model, ctx, mola, valid, conf, sun, device):
     return z * mstd + mmean, mmean, mstd
 
 
-def fit_window(pred, r, c, pedr, grid_tf, proj):
+def fit_window(pred, r, c, pedr, grid_tf, proj, footprint_m=anchor.FOOTPRINT_M):
     """Gain/offset fit of one window to the shots inside it (None if unusable)."""
     rr = np.array([r, r, r + TILE, r + TILE], float)
     cc = np.array([c, c + TILE, c, c + TILE], float)
@@ -141,7 +144,7 @@ def fit_window(pred, r, c, pedr, grid_tf, proj):
     if ((col >= 0) & (col < TILE) & (row >= 0) & (row < TILE)).sum() < anchor.MIN_SHOTS:
         return None
     try:
-        fit = anchor.fit_gain_offset(pred, row, col, elev)
+        fit = anchor.fit_gain_offset(pred, row, col, elev, footprint_m=footprint_m)
     except ValueError:
         return None
     if fit['spread'] < anchor.MIN_SPREAD_M:
@@ -186,7 +189,8 @@ def write(path, arr, transform, crs):
         dst.write(arr.astype(np.float32), 1)
 
 
-def predict_image(image, inc, az, model, mola_sampler, pedr, out_dir, device='cpu'):
+def predict_image(image, inc, az, model, mola_sampler, pedr, out_dir, device='cpu',
+                  footprint_m=anchor.FOOTPRINT_M):
     with rasterio.open(image) as src:
         img = src.read(1).astype(np.float32)
         img_tf, crs, nodata = src.transform, src.crs, src.nodata
@@ -210,7 +214,8 @@ def predict_image(image, inc, az, model, mola_sampler, pedr, out_dir, device='cp
             pred, mmean, mstd = predict_window(model, ctx[r:r + TILE, c:c + TILE], mola[r:r + TILE, c:c + TILE],
                                                v, conf[r:r + TILE, c:c + TILE], sun, device)
             windows.append({'r': r, 'c': c, 'pred': pred, 'w': (hann * v).astype(np.float32),
-                            'mmean': mmean, 'mstd': mstd, 'fit': fit_window(pred, r, c, pedr, grid_tf, proj)})
+                            'mmean': mmean, 'mstd': mstd,
+                            'fit': fit_window(pred, r, c, pedr, grid_tf, proj, footprint_m)})
     if not windows:
         raise ValueError('no window has enough valid image')
 
@@ -232,10 +237,12 @@ def main():
     ap.add_argument('--mola', required=True, help='MOLA gridded DEM, 463 m')
     ap.add_argument('--pedr', required=True, help='PEDR SQLite database')
     ap.add_argument('--out', required=True)
+    ap.add_argument('--footprint', type=float, default=anchor.FOOTPRINT_M,
+                    help='full width at half maximum of the shot footprint in metres (default %(default)s)')
     args = ap.parse_args()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     predict_image(args.image, args.inc, args.az, load_model(args.model, device), MolaSampler(args.mola),
-                  PedrDatabase(args.pedr), args.out, device)
+                  PedrDatabase(args.pedr), args.out, device, args.footprint)
 
 
 if __name__ == '__main__':

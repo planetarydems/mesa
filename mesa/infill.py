@@ -15,7 +15,7 @@ standard deviation (1.4826 MAD, clipped to 40-300 m) of the valid coarse
 elevation around the gap. The fill is composited only into gaps; the join to
 the surrounding DEM is made by seams.seamline_merge.
 
-    python -m mader.infill --dem tiles/E-030_N-10/leveled.tif --ctx tiles/E-030_N-10/ctx_18m.tif \
+    python -m mesa.infill --dem tiles/E-030_N-10/leveled.tif --ctx tiles/E-030_N-10/ctx_18m.tif \
         --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --coarse infill_coarse.pt \
         --fine infill_fine.pt --out tiles/E-030_N-10/infill
 """
