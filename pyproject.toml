@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mesa"
-version = "1.1.0"
+version = "3.0.0"
 description = "MESA, Mars Elevation from Shading and Altimetry: an 18 m DEM of Mars from single CTX images"
 readme = "README.md"
 license = {text = "MIT"}
@@ -24,3 +24,6 @@ infill-train = ["lightning>=2.0"]
 
 [tool.setuptools]
 packages = ["mesa"]
+
+[tool.setuptools.package-data]
+mesa = ["configs/*.json"]

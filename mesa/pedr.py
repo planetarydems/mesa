@@ -15,11 +15,20 @@ from .geo import lonlat_to_xy, query_box
 
 
 class PedrDatabase:
+    """Read-only access to the PEDR shot table.
 
-    def __init__(self, path):
+    full_lon_near_poles=True applies the rule of the v3 prediction: a box whose
+    longitude span is 360 deg or more, or that reaches within 2 deg of a pole,
+    is queried over all longitudes of its latitude band. Without the rule such
+    a box (a frame rotated near a pole spans more than 360 deg of longitude)
+    folds onto one sector modulo 360, and the frame loses its shots. Shots that
+    fall outside the frame are dropped by the callers."""
+
+    def __init__(self, path, full_lon_near_poles=False):
         if not Path(path).exists():
             raise FileNotFoundError(path)
         self.con = sqlite3.connect(f'file:{Path(path).resolve()}?mode=ro', uri=True)
+        self.full_lon_near_poles = bool(full_lon_near_poles)
 
     def query(self, lat_min, lat_max, lon_min, lon_max, elev_range=(-8500.0, 22000.0),
               exclude_orbits=None):
@@ -28,6 +37,8 @@ class PedrDatabase:
         Longitudes are taken modulo 360; lon_min > lon_max selects a box that
         wraps through 0. Shots outside elev_range are corrupt records and are
         dropped. exclude_orbits removes whole MOLA passes."""
+        if self.full_lon_near_poles and (lon_max - lon_min >= 359.999 or lat_max >= 88.0 or lat_min <= -88.0):
+            lon_min, lon_max = 0.0, 359.9999999
         lo, hi = lon_min % 360.0, lon_max % 360.0
         sql = ('SELECT LAT, LON, ELEV FROM mola WHERE LAT BETWEEN ? AND ? AND '
                + ('LON BETWEEN ? AND ?' if lo <= hi else '(LON >= ? OR LON <= ?)')

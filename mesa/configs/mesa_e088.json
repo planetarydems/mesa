@@ -1,0 +1,11 @@
+{
+ "name": "mesa_e088",
+ "description": "MESA DEM network of release 1: epoch 88 of run ta_implicit_d1_implrel100_s1_fp32 (seed 1), transposed-convolution decoder",
+ "epoch": 88,
+ "in_channels": 3,
+ "depths": [64, 128, 256, 512],
+ "dropout": 0.1,
+ "cg_iters": 25,
+ "upsample_mode": "deconv",
+ "down_mode": "maxpool"
+}

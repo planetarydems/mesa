@@ -19,6 +19,6 @@ W=$G/experiments/implrel_e088_paper; R95=$G/experiments/v4rel_e095_paper/out_202
 MOLA=$G/data/Mars_MGS_MOLA_DEM_mosaic_global_463m.tiff
 cd $C
 echo "=== $(hostname) $(date)"; nvidia-smi -L
-python3 verification/check_evaluate.py $O/mader_e088.pt $V $A $C/data/test_pairs.txt $W $R95/tiles/tiles_moladist_1k.csv \
+FOOTPRINT_M=150 python3 verification/check_evaluate.py $O/mader_e088.pt $V $A $C/data/test_pairs.txt $W $R95/tiles/tiles_moladist_1k.csv \
   $R/ref/tiles_moladist.csv $A/out359mola $MOLA $O/evaluate
 echo "=== done $(date)"

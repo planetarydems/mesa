@@ -9,15 +9,24 @@ to the PEDR shots (gain and offset, see anchor.py). The windows are blended
 with a Hann weight.
 
     python -m mesa.predict --image aligned_pedr/B01_009956_2169_aligned.vrt \
-        --inc 45.45 --az 262.89 --model mesa_e088.pt \
+        --inc 45.45 --az 262.89 --model mesa_e098.pt \
         --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --pedr pedr.sqlite \
         --out preds/B01_009956_2169
+
+Two rules of the v3 prediction apply to any model. PEDR shots are queried
+over all longitudes when the frame spans 360 deg of longitude or reaches
+within 2 deg of a pole (pedr.PedrDatabase, full_lon_near_poles). A frame
+whose shot-distance input has a mean below 0.05 (as printed to three
+decimals) is refused, because it means the shot query failed
+(--min-conf-mean; 0 turns the check off).
 
 Writes pred_shot_anchor.tif (the product), pred_feather.tif (MOLA statistics
 only, no shots), ctx_on_grid.tif and mola_on_grid.tif.
 
 The shots are compared with the prediction through a 168 m Gaussian footprint
-(anchor.FOOTPRINT_M), matching the evaluation and leveling configuration.
+(anchor.FOOTPRINT_M), matching the evaluation and leveling configuration. The
+frames of the v3 product were anchored through a 150 m footprint
+(--footprint 150 reproduces them; verification/README.md).
 """
 import argparse
 import math
@@ -40,6 +49,7 @@ TILE, STRIDE = 384, 192
 NODATA = -9999.0
 STD_FLOOR_M = 5.0
 MIN_VALID = 0.25          # windows with less valid image are skipped
+MIN_CONF_MEAN = 0.05      # v3: a frame whose shot-distance input averages less is refused
 
 
 def northup_grid(transform, width, height, px=PIXEL):
@@ -190,7 +200,7 @@ def write(path, arr, transform, crs):
 
 
 def predict_image(image, inc, az, model, mola_sampler, pedr, out_dir, device='cpu',
-                  footprint_m=anchor.FOOTPRINT_M):
+                  footprint_m=anchor.FOOTPRINT_M, min_conf_mean=MIN_CONF_MEAN):
     with rasterio.open(image) as src:
         img = src.read(1).astype(np.float32)
         img_tf, crs, nodata = src.transform, src.crs, src.nodata
@@ -202,6 +212,8 @@ def predict_image(image, inc, az, model, mola_sampler, pedr, out_dir, device='cp
     mola = mola_sampler.on_grid(grid_tf, H, W, proj)
     d1 = shot_distance(pedr, proj, grid_tf, W, H)
     conf = np.zeros((H, W), np.float32) if d1 is None else shot_confidence(d1)
+    if min_conf_mean > 0 and float(f'{conf.mean():.3f}') < min_conf_mean:
+        raise ValueError(f'shot-distance input mean {conf.mean():.3f} < {min_conf_mean}: the PEDR query failed')
     sun = sun_vector(inc, az)
 
     hann = hann_weight()
@@ -237,12 +249,17 @@ def main():
     ap.add_argument('--mola', required=True, help='MOLA gridded DEM, 463 m')
     ap.add_argument('--pedr', required=True, help='PEDR SQLite database')
     ap.add_argument('--out', required=True)
+    ap.add_argument('--config', default=None,
+                    help='model configuration (default: the one stored with or named after the weights)')
     ap.add_argument('--footprint', type=float, default=anchor.FOOTPRINT_M,
                     help='full width at half maximum of the shot footprint in metres (default %(default)s)')
+    ap.add_argument('--min-conf-mean', type=float, default=MIN_CONF_MEAN,
+                    help='refuse a frame whose shot-distance input averages less (default %(default)s)')
     args = ap.parse_args()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    predict_image(args.image, args.inc, args.az, load_model(args.model, device), MolaSampler(args.mola),
-                  PedrDatabase(args.pedr), args.out, device, args.footprint)
+    predict_image(args.image, args.inc, args.az, load_model(args.model, device, args.config), MolaSampler(args.mola),
+                  PedrDatabase(args.pedr, full_lon_near_poles=True), args.out, device, args.footprint,
+                  args.min_conf_mean)
 
 
 if __name__ == '__main__':

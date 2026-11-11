@@ -4,12 +4,17 @@ AdamW (lr 1e-4, weight decay 1e-5), batch 16, 100 epochs, cosine decay of the
 learning rate to 1e-6 (stepped once per epoch), gradient norm clipped at 1,
 single precision with TF32 matrix products. Each epoch is checkpointed; the
 released model is the epoch with the lowest validation MAE in metres
-(checkpoints/best.pt here).
+(checkpoints/best.pt here; epoch 98 for the model of the paper).
 
     python -m mesa.train --root /data/mars_ctx_dem_v4_pedr \
         --manifest /data/mars_ctx_dem_v4_pedr/manifest_v4sT_ge10.csv \
         --incidence-json /data/mars_ctx_dem_v4_pedr/ctx_overlapping_95pct_polar.json \
         --out runs/mesa --seed 1
+
+The architecture comes from --config (default mesa/configs/mesa_e098.json,
+the B-spline decoder of the paper; mesa_e088.json gives the transposed-
+convolution decoder of release 1). It is stored in every checkpoint, so
+mesa.model.load_model rebuilds the same network.
 
 An interrupted run continues with --resume runs/mesa/checkpoints/epoch_NNN.pt.
 """
@@ -26,7 +31,7 @@ from torch.utils.data import DataLoader
 
 from .data import TileDataset
 from .loss import MesaLoss
-from .model import MESA
+from .model import CONFIG_DIR, build, read_config
 
 
 def to_device(batch, device):
@@ -85,6 +90,8 @@ def main():
     ap.add_argument('--num-workers', type=int, default=16)
     ap.add_argument('--seed', type=int, default=1)
     ap.add_argument('--resume', default=None)
+    ap.add_argument('--config', default=str(CONFIG_DIR / 'mesa_e098.json'),
+                    help='model configuration (default %(default)s)')
     args = ap.parse_args()
 
     torch.manual_seed(args.seed)
@@ -106,12 +113,13 @@ def main():
     val_loader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False,
                             num_workers=args.num_workers, pin_memory=True)
 
-    model = MESA().to(device)
+    model_cfg = read_config(args.config)
+    model = build(model_cfg).to(device)
     loss_fn = MesaLoss().to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs,
                                                            eta_min=args.lr * 0.01)
-    print(f'MESA: {sum(p.numel() for p in model.parameters()):,} parameters')
+    print(f'MESA: {sum(p.numel() for p in model.parameters()):,} parameters, {model.config}')
 
     start, history, best = 0, [], float('inf')
     if args.resume:
@@ -133,7 +141,7 @@ def main():
                         'train': train_metrics, 'val': val_metrics})
         json.dump(history, open(out / 'history.json', 'w'), indent=1)
         state = {'model': model.state_dict(), 'optimizer': optimizer.state_dict(),
-                 'scheduler': scheduler.state_dict(), 'epoch': epoch}
+                 'scheduler': scheduler.state_dict(), 'epoch': epoch, 'config': model_cfg}
         torch.save(state, out / 'checkpoints' / f'epoch_{epoch:03d}.pt')
         if val_metrics['mae_m'] < best:
             best = val_metrics['mae_m']

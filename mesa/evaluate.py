@@ -33,16 +33,19 @@ weighted by its pixels in the bin. The disagreement is measured with the MOLA
 input of the network (the half-cell corrected grid); the MOLA row of the
 shot-distance block scores MOLA as distributed on the same crops.
 
-    python -m mesa.evaluate tiles --model mesa_e088.pt --root mars_ctx_dem_v4_pedr \\
+    python -m mesa.evaluate tiles --model mesa_e098.pt --root mars_ctx_dem_v4_pedr \\
         --manifest data/test_manifest_eq.csv,data/test_manifest_mid.csv,data/test_manifest_polar.csv \\
-        --pairs data/test_pairs.txt --out tiles.csv
+        --pairs data/test_pairs.txt --out tiles.csv --footprint 150
     python -m mesa.evaluate mola-tiles --root mars_ctx_dem_v4_pedr --samples tiles.csv \\
         --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --out tiles_mola.csv
-    python -m mesa.evaluate bins --model mesa_e088.pt --root mars_ctx_dem_v4_pedr \\
+    python -m mesa.evaluate bins --model mesa_e098.pt --root mars_ctx_dem_v4_pedr \\
         --manifest data/test_manifest_eq.csv --pairs data/test_pairs.txt \\
-        --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --out bins_eq.npz          (also _mid, _polar)
+        --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --out bins_eq.npz --footprint 150   (also _mid, _polar)
     python -m mesa.evaluate tables --samples tiles.csv --mola-tiles tiles_mola.csv --pairs data/test_pairs.txt \\
         --bins bins_eq.npz bins_mid.npz bins_polar.npz
+
+The tile scores of the paper were anchored through a 150 m footprint
+(--footprint 150); the default is the 168 m of anchor.FOOTPRINT_M.
 """
 import argparse
 import csv
@@ -553,6 +556,7 @@ def main():
     t.add_argument('--out', required=True)
     t.add_argument('--footprint', type=float, default=FOOTPRINT_M,
                    help='shot footprint FWHM in metres (default %(default)s)')
+    t.add_argument('--config', default=None, help='model configuration (default: stored with the weights)')
     m = sub.add_parser('mola-tiles', help='MOLA as distributed on the same windows')
     m.add_argument('--root', required=True)
     m.add_argument('--samples', required=True, help='output of the tiles command')
@@ -569,6 +573,7 @@ def main():
     b.add_argument('--out', required=True, help='.npz')
     b.add_argument('--footprint', type=float, default=FOOTPRINT_M,
                    help='shot footprint FWHM in metres (default %(default)s)')
+    b.add_argument('--config', default=None, help='model configuration (default: stored with the weights)')
     s = sub.add_parser('tables', help='Table 1 tile rows and Table 2 from the outputs above')
     s.add_argument('--samples', required=True)
     s.add_argument('--mola-tiles', required=True)
@@ -579,7 +584,7 @@ def main():
 
     if args.cmd in ('tiles', 'bins'):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        model = load_model(args.model, device)
+        model = load_model(args.model, device, args.config)
         pairs = set(open(args.pairs).read().split())
         inc_json = args.incidence_json or str(Path(args.root) / 'ctx_overlapping_95pct_polar.json')
     if args.cmd == 'tiles':

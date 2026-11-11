@@ -1,7 +1,10 @@
 """Check that the released training loop reproduces the original training
 loop step by step.
 
-    python verification/check_train_steps.py ORIG_CODE DATA_ROOT MANIFEST [STEPS] [BATCH]
+    [MODEL_CONFIG=mesa_e098] python verification/check_train_steps.py ORIG_CODE DATA_ROOT MANIFEST [STEPS] [BATCH]
+
+MODEL_CONFIG names the packaged configuration of the network (mesa_e088, the
+default, or mesa_e098); ORIG_CODE must be the training code of that model.
 
 Both trainers start from the same weights (the original network's random
 initialisation, copied into the released network), see the same batches
@@ -10,6 +13,7 @@ and dropout) and take STEPS optimiser steps on the CPU. The script compares
 the loss of every step and every weight at the end.
 """
 import itertools
+import os
 import random
 import sys
 from pathlib import Path
@@ -20,7 +24,7 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from mesa.data import TileDataset  # noqa: E402
 from mesa.loss import MesaLoss  # noqa: E402
-from mesa.model import MESA  # noqa: E402
+from mesa.model import build, read_config  # noqa: E402
 from mesa.train import train_one_epoch  # noqa: E402
 
 orig_code, root, manifest = sys.argv[1:4]
@@ -77,11 +81,16 @@ def reset_random_state():
     torch.manual_seed(7)
 
 
+model_cfg = read_config(os.environ.get('MODEL_CONFIG', 'mesa_e088'))
+resampling = {'upsample_mode': model_cfg['upsample_mode']}
+if model_cfg['down_mode'] != 'maxpool' or model_cfg['upsample_mode'] != 'deconv':
+    resampling['down_mode'] = model_cfg['down_mode']      # the epoch-88 code has no down_mode argument
+print(f'network {model_cfg["name"]}: {resampling}')
 torch.manual_seed(0)
 orig = FiLMUNetDualHead(in_channels=3, out_channels=1, depths=[64, 128, 256, 512], dropout=0.1,
                         use_attention=True, skip_mode='implicit', cg_iters=25, cg_mu=0.05,
-                        relief_film=True, relief_solve=True)
-clean = MESA()
+                        relief_film=True, relief_solve=True, **resampling)
+clean = build(model_cfg)
 clean.load_state_dict({k: v for k, v in orig.state_dict().items() if k != 'mola_weight'}, strict=True)
 
 # original trainer

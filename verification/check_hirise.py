@@ -3,6 +3,8 @@ the manuscript's scoring of epoch 88.
 
     python verification/check_hirise.py --ref REF_DIR --sample SAMPLE_DIR --placement PLACEMENT_DIR \
         --group GROUP_DIR --preds PRED_ROOT --out OUT [--jobs N]
+    python verification/check_hirise.py --ref REF_DIR --inputs INPUT_DIR --sample SAMPLE_DIR --group GROUP_DIR \
+        --out OUT --ref-prefix eval [--jobs N]          (the paper, v3)
 
 REF_DIR        the manuscript's epoch-88 HiRISE workspace: imgreg/<DTM>.json and
                moladist/<DTM>.json (one per HiRISE DEM: every window, its image
@@ -23,6 +25,12 @@ The input tables of mesa.evaluate_hirise are built from these files, every
 HiRISE DEM of the sample is scored by the released code (records cached under
 OUT/records), and each window, each DEM and each table cell is compared with
 the manuscript's values. The per-DEM CSV rounds to 4 decimals.
+
+For the paper (v3), --inputs gives the three input tables with the cluster's
+paths (verification/make_hirise_inputs_v3.py), REF_DIR is the manuscript's v3
+scoring with the windows of release 1 (imgreg/, moladist/, eval_dtm.csv,
+eval.txt, text_numbers_eval.txt; --ref-prefix eval), and SAMPLE_DIR is only
+read for scores_f/ (the window geometry behind the ground shift).
 """
 import argparse
 import csv
@@ -41,12 +49,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from mesa import evaluate_hirise as eh  # noqa: E402
 
 ap = argparse.ArgumentParser()
-for k in ('ref', 'sample', 'placement', 'group', 'preds', 'out'):
+for k in ('ref', 'sample', 'group', 'out'):
     ap.add_argument(f'--{k}', required=True)
+ap.add_argument('--placement', default=None)
+ap.add_argument('--preds', default=None)
+ap.add_argument('--inputs', default=None, help='directory with prebuilt hirise_dems.csv, hirise_windows.csv, '
+                                                'hirise_stereo_pairs.csv (absolute paths)')
+ap.add_argument('--ref-prefix', default='e088_359', help='REF_DIR/<prefix>_dtm.csv and <prefix>.txt')
 ap.add_argument('--jobs', type=int, default=24)
 ap.add_argument('--only', default=None, help='comma-separated DEMs: score and compare these windows only')
 args = ap.parse_args()
-REF, SMP, PLC, G = Path(args.ref), Path(args.sample), Path(args.placement), Path(args.group)
+REF, SMP, G = Path(args.ref), Path(args.sample), Path(args.group)
+PLC = Path(args.placement) if args.placement else None
 OUT = Path(args.out)
 (OUT / 'records').mkdir(parents=True, exist_ok=True)
 MOLA = str(G / 'data' / 'Mars_MGS_MOLA_DEM_mosaic_global_463m.tiff')
@@ -67,34 +81,42 @@ def write_csv(p, rows):
 
 
 # ---- input tables ----------------------------------------------------------------------------------------------------
-sites = read_csv(SMP / 'hirise' / 'sites_rb.csv')
-box = {(r['dtm'], r['product']): r['box'] for r in read_csv(SMP / 'all' / 'frames_all.csv') if r.get('box')}
-ortho = {r['dtm']: os.path.basename(r['url']) for r in read_csv(PLC / 'ori_pick.csv')}
-excluded = {l.split()[0] for l in open(PLC / 'modelfree_exclude.txt') if l.strip() and not l.startswith('#')}
-sel = {r['dtm']: r for r in read_csv(SMP / 'sel_r1r2.csv')}
-CTX_ID = re.compile(r'[A-Z][0-9A-Z][0-9]_[0-9]{6}_[0-9]{4}')
-stereo_dirs = {}
-for d in sorted(os.listdir(G / 'stereo_dems')):
-    k = '+'.join(sorted(set(CTX_ID.findall(d))))
-    if k.count('+') == 1:
-        stereo_dirs.setdefault(k, d)
-dems, windows, pairs = [], [], {}
 only = set(args.only.split(',')) if args.only else None
-for s in sites:
-    if s['dtm'] in excluded or (only and s['dtm'] not in only):
-        continue
-    dems.append(dict(dem=s['dtm'], dem_path=s['dtm_path'], ortho_path=str(G / 'hirise_ori' / ortho[s['dtm']]),
-                     lat=sel[s['dtm']]['lat'], dist_km=sel[s['dtm']]['dist_trainval_km'], pairs=s['label_pairs']))
-    for stem in [x for x in s['stems'].split(';') if x]:
-        b = box[(s['dtm'], stem)]
-        windows.append(dict(dem=s['dtm'], image=stem, prediction=f'{args.preds}/{b}/{stem}',
-                            registered_image=str(G / 'global_run' / 'boxes' / b / 'box_run' / 'aligned_pedr' /
-                                                 f'{stem}_aligned.vrt')))
-    for p in [x for x in s['label_pairs'].split(';') if x]:
-        sd = stereo_dirs.get('+'.join(sorted(set(CTX_ID.findall(p)))))
-        orthos = sorted(glob.glob(str(G / 'stereo_dems' / sd / 'mapprojected_images' / '*_map_tied.tif'))) if sd else []
-        orthos = [o for o in orthos if os.path.basename(o)[:15] in p] or orthos
-        pairs[p] = dict(pair=p, dem_path=str(SMP / 'labels' / f'{p}.tif'), orthoimages=';'.join(orthos[:2]))
+if args.inputs:
+    INP0 = Path(args.inputs)
+    dems = [d for d in read_csv(INP0 / 'hirise_dems.csv') if not only or d['dem'] in only]
+    keep = {d['dem'] for d in dems}
+    windows = [w for w in read_csv(INP0 / 'hirise_windows.csv') if w['dem'] in keep]
+    pairs = {r['pair']: r for r in read_csv(INP0 / 'hirise_stereo_pairs.csv')}
+    excluded = set()
+else:
+    sites = read_csv(SMP / 'hirise' / 'sites_rb.csv')
+    box = {(r['dtm'], r['product']): r['box'] for r in read_csv(SMP / 'all' / 'frames_all.csv') if r.get('box')}
+    ortho = {r['dtm']: os.path.basename(r['url']) for r in read_csv(PLC / 'ori_pick.csv')}
+    excluded = {l.split()[0] for l in open(PLC / 'modelfree_exclude.txt') if l.strip() and not l.startswith('#')}
+    sel = {r['dtm']: r for r in read_csv(SMP / 'sel_r1r2.csv')}
+    CTX_ID = re.compile(r'[A-Z][0-9A-Z][0-9]_[0-9]{6}_[0-9]{4}')
+    stereo_dirs = {}
+    for d in sorted(os.listdir(G / 'stereo_dems')):
+        k = '+'.join(sorted(set(CTX_ID.findall(d))))
+        if k.count('+') == 1:
+            stereo_dirs.setdefault(k, d)
+    dems, windows, pairs = [], [], {}
+    for s in sites:
+        if s['dtm'] in excluded or (only and s['dtm'] not in only):
+            continue
+        dems.append(dict(dem=s['dtm'], dem_path=s['dtm_path'], ortho_path=str(G / 'hirise_ori' / ortho[s['dtm']]),
+                         lat=sel[s['dtm']]['lat'], dist_km=sel[s['dtm']]['dist_trainval_km'], pairs=s['label_pairs']))
+        for stem in [x for x in s['stems'].split(';') if x]:
+            b = box[(s['dtm'], stem)]
+            windows.append(dict(dem=s['dtm'], image=stem, prediction=f'{args.preds}/{b}/{stem}',
+                                registered_image=str(G / 'global_run' / 'boxes' / b / 'box_run' / 'aligned_pedr' /
+                                                     f'{stem}_aligned.vrt')))
+        for p in [x for x in s['label_pairs'].split(';') if x]:
+            sd = stereo_dirs.get('+'.join(sorted(set(CTX_ID.findall(p)))))
+            orthos = sorted(glob.glob(str(G / 'stereo_dems' / sd / 'mapprojected_images' / '*_map_tied.tif'))) if sd else []
+            orthos = [o for o in orthos if os.path.basename(o)[:15] in p] or orthos
+            pairs[p] = dict(pair=p, dem_path=str(SMP / 'labels' / f'{p}.tif'), orthoimages=';'.join(orthos[:2]))
 INP = OUT / ('inputs_only' if only else 'inputs')
 INP.mkdir(exist_ok=True)
 write_csv(INP / 'hirise_dems.csv', dems)
@@ -248,7 +270,7 @@ NAMES = {('inplace_all', 'e098'): ('in_place', 'model'), ('inplace_all', 'mola_d
          ('imggated', 'label@'): ('stereo', 'stereo'), ('imggated', 'mola_dist@'): ('stereo', 'mola')}
 COLS = {'n': 'windows', 'mae_unreg': 'deploy_mae', 'mae_label': 'label_mae', 'mae_lk': 'aligned_mae', 'abs_off': 'abs_offset',
         'off': 'offset', 'slope_rmse_deg': 'slope_rmse', 'relief': 'relief', 'pct_unreg': 'deploy_pct'}
-dtm_csv = REF / 'e088_359_dtm.csv'
+dtm_csv = REF / f'{args.ref_prefix}_dtm.csv'
 if dtm_csv.exists():
     prod = [r for r in read_csv(dtm_csv) if (r['set'], r['cand']) in NAMES]
     keys_p = {(*NAMES[(r['set'], r['cand'])], r['dtm']) for r in prod}
@@ -288,7 +310,7 @@ def close(value, printed):
     return abs(value - float(printed)) <= 0.5 * 10 ** -dec + 6e-5
 
 
-agg = REF / 'e088_359.txt'
+agg = REF / f'{args.ref_prefix}.txt'
 if agg.exists():
     txt = open(agg).read()
 
@@ -348,7 +370,7 @@ else:
     print(f'{agg} not found: table comparison skipped')
     ok = False
 
-numbers = REF / 'text_numbers_e088.txt'
+numbers = REF / ('text_numbers_e088.txt' if args.ref_prefix == 'e088_359' else f'text_numbers_{args.ref_prefix}.txt')
 if numbers.exists():
     lines = open(numbers).read().splitlines()
     ip, rg, st = X['in_place'], X['registered'], X['stereo']

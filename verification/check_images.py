@@ -3,8 +3,9 @@ Section 3.1) against the manuscript's scoring of epoch 88.
 
     python verification/check_images.py ROOT MANIFEST_DIR PAIRS IMAGES LABELS_REF PREDS MOLA GRIDS_REF JSON_REF OUT [JOBS]
 
-ROOT          the test archive (mars_ctx_dem_v4_pedr)
-MANIFEST_DIR  manifest_v4s_test375_{eq,mid,polar}.csv
+ROOT          the test archive (mars_ctx_dem_v4_pedr), or '-' to score the stereo
+              DEMs of LABELS_REF as they are (the full stereo DEMs of the paper)
+MANIFEST_DIR  manifest_v4s_test375_{eq,mid,polar}.csv (unused with ROOT '-')
 PAIRS         the 359 test pairs
 IMAGES        data/test_images.csv
 LABELS_REF    the stereo DEMs the manuscript was scored against, <pair>.tif
@@ -15,8 +16,8 @@ JSON_REF      the manuscript's per-pair scores, JSON_REF/<pair>.json (blocks
               deploy = in place, final = co-registered, mola; hp1k_* = <1 km)
 OUT           output directory
 
-1. stereo DEMs rebuilt from the test tiles vs LABELS_REF, bit for bit
-2. pair_grids vs GRIDS_REF, pixel by pixel
+1. stereo DEMs rebuilt from the test tiles vs LABELS_REF, bit for bit (release 1)
+2. pair_grids vs GRIDS_REF, pixel by pixel (within one float32 spacing)
 3. every per-pair measure vs JSON_REF
 4. Table 1 whole-image cells and the Section 3.1 statistics vs the same
    medians computed from JSON_REF, and vs the values printed in the manuscript
@@ -38,8 +39,8 @@ from mesa.evaluate import read_rows, write_csv  # noqa: E402
 root, man_dir, pairs_file, images_csv, labels_ref, preds, mola_tif, grids_ref, json_ref, out = sys.argv[1:11]
 jobs = int(sys.argv[11]) if len(sys.argv) > 11 else 16
 out = Path(out)
-labels = out / 'labels'
-labels.mkdir(parents=True, exist_ok=True)
+out.mkdir(parents=True, exist_ok=True)
+labels = out / 'labels' if root != '-' else Path(labels_ref)
 pairs = [p for p in open(pairs_file).read().split()]
 rows = list(csv.DictReader(open(images_csv)))
 ok = True
@@ -57,21 +58,27 @@ print(f'{len(rows)} rows in {images_csv}; same pairs in the same order as {pairs
 ok &= [r['pair'] for r in rows] == pairs
 
 # ---- 1. stereo DEMs ---------------------------------------------------------------------------------
-manifests = [str(Path(man_dir) / f'manifest_v4s_test375_{b}.csv') for b in ('eq', 'mid', 'polar')]
-tiles = {}
-for r in read_rows(manifests, set(pairs)):
-    tiles.setdefault(r['pair_short'], set()).add(r['dem_tile'])
-n_same = 0
-for p in pairs:
-    f = labels / f'{p}.tif'
-    if not f.exists():
-        ei.build_label(root, tiles[p], f)
-    with rasterio.open(f) as a, rasterio.open(Path(labels_ref) / f'{p}.tif') as b:
-        same = (a.shape == b.shape and a.transform == b.transform and a.crs == b.crs
-                and np.array_equal(a.read(1), b.read(1), equal_nan=True))
-    n_same += same
-print(f'stereo DEMs: {n_same} of {len(pairs)} identical to the reference ({sum(len(v) for v in tiles.values())} tiles)')
-ok &= n_same == len(pairs)
+if root == '-':
+    n = sum((labels / f'{p}.tif').exists() for p in pairs)
+    print(f'stereo DEMs: the {n} of {len(pairs)} DEMs of {labels} are scored as they are')
+    ok &= n == len(pairs)
+else:
+    labels.mkdir(parents=True, exist_ok=True)
+    manifests = [str(Path(man_dir) / f'manifest_v4s_test375_{b}.csv') for b in ('eq', 'mid', 'polar')]
+    tiles = {}
+    for r in read_rows(manifests, set(pairs)):
+        tiles.setdefault(r['pair_short'], set()).add(r['dem_tile'])
+    n_same = 0
+    for p in pairs:
+        f = labels / f'{p}.tif'
+        if not f.exists():
+            ei.build_label(root, tiles[p], f)
+        with rasterio.open(f) as a, rasterio.open(Path(labels_ref) / f'{p}.tif') as b:
+            same = (a.shape == b.shape and a.transform == b.transform and a.crs == b.crs
+                    and np.array_equal(a.read(1), b.read(1), equal_nan=True))
+        n_same += same
+    print(f'stereo DEMs: {n_same} of {len(pairs)} identical to the reference ({sum(len(v) for v in tiles.values())} tiles)')
+    ok &= n_same == len(pairs)
 
 
 # ---- 2. and 3. grids and per-pair measures ------------------------------------------------------------
@@ -96,7 +103,10 @@ def one(row):
             cmp[name] = None                 # different extent
             continue
         both = np.isfinite(a) & np.isfinite(b)
-        cmp[name] = (int((np.isfinite(a) != np.isfinite(b)).sum()), float(np.abs(a[both] - b[both]).max()))
+        d = np.abs(a[both] - b[both])
+        # the grids are float32: a difference in units of the float32 spacing at the reference value
+        ulp = float((d / np.spacing(np.abs(b[both]).astype(np.float32)).astype(np.float64)).max()) if d.size else 0.0
+        cmp[name] = (int((np.isfinite(a) != np.isfinite(b)).sum()), float(d.max()), int((d > 0).sum()), ulp)
     s = ei.score_grids(stereo, pred, mola, transform, row)
     # MOLA on the prediction's in-place pixels only (diagnostic: MOLA is scored on every stereo-DEM pixel of the grid)
     m = np.isfinite(pred) & np.isfinite(stereo) & np.isfinite(mola)
@@ -115,9 +125,15 @@ for k in ('stereo', 'pred', 'mola'):
     extent = [p for v, p in c if v is None]
     nmask, pm = max((v[0], p) for v, p in c if v is not None)
     d, pd = max((v[1], p) for v, p in c if v is not None)
+    ndiff = [(v[2], p) for v, p in c if v is not None and v[2]]
     print(f'grid {k:6s}: extent differs at {len(extent)} pairs {extent[:3]}; largest no-data mask difference {nmask} px '
-          f'({pm}); largest |difference| {d:.3g} m ({pd})')
-    ok &= not extent and nmask == 0 and d == 0.0
+          f'({pm}); largest |difference| {d:.3g} m ({pd}); pixels that differ: {sum(n for n, _ in ndiff)} at '
+          f'{len(ndiff)} pairs {ndiff[:5]}')
+    ulp = max(v[3] for v, p in c if v is not None)
+    print(f'            largest difference in units of the float32 spacing: {ulp:.2f}')
+    # GDAL's warp can round one output value differently between versions; a grid passes when every value is
+    # within one float32 spacing of the reference and every measure agrees (checked below)
+    ok &= not extent and nmask == 0 and ulp <= 1.0
 
 ref = {p: json.load(open(Path(json_ref) / f'{p}.json')) for p in pairs}
 keys = dict(pixels='n', mae='mae', rmse='rmse', level_m='off', relief_m='relief', error_relief_pct='pct', fine_r='hp1k_r',
@@ -198,7 +214,44 @@ worst = max(difference(mine[k], v) for k, v in theirs.items())
 print(f'\ntables: {len(theirs)} values, largest difference from the medians of the reference scores {worst:.2e}')
 ok &= worst < 1e-9
 
-# values printed in the manuscript (Table 1; Section 3.1; Texts S7 and S10)
+import os  # noqa: E402
+V3_TABLE = os.environ.get('V3_TABLE')
+if V3_TABLE:
+    # the manuscript's v3 Table 1 values at full precision (table1_v3_complete.json, block 'whole')
+    v3 = json.load(open(V3_TABLE))
+    names = dict(n='pairs', label='label_mae', aligned='aligned_mae', deploy='deploy_mae', r1k='fine_r', amp1k='fine_amp',
+                 pct='error_relief_pct', mola_deploy='mola_mae', mola_r1k='mola_fine_r', mola_amp1k='mola_fine_amp',
+                 mola_pct='mola_error_relief_pct')
+    worst, n = 0.0, 0
+    for band in ('all', 'eq', 'mid', 'polar'):
+        for k, mk in names.items():
+            worst = max(worst, difference(float(result['table1_images'][band][mk]), float(v3['whole'][band][k])))
+            n += 1
+    p80, t = v3['whole']['p80'], result['text']['poleward_80']
+    for k, mk in (('n', 'pairs'), ('deploy', 'deploy_mae'), ('mola_deploy', 'mola_mae'), ('better', 'better_than_mola'),
+                  ('r1k', 'fine_r'), ('amp1k', 'fine_amp'), ('mola_r1k', 'mola_fine_r'), ('mola_amp1k', 'mola_fine_amp')):
+        worst = max(worst, difference(float(t[mk]), float(p80[k])))
+        n += 1
+    for rb in v3['relief_bins']:
+        lo, hi = rb['bin'].split('-')
+        key = f'{lo}-{"inf" if float(hi) > 1e8 else hi}'
+        c = result['text']['by_relief'][key]
+        for k, mk in (('n', 'pairs'), ('deploy', 'deploy_mae'), ('mola', 'mola_mae'), ('pct', 'error_relief_pct'),
+                      ('mola_pct', 'mola_error_relief_pct')):
+            worst = max(worst, difference(float(c[mk]), float(rb[k])))
+            n += 1
+    wt, t = v3['whole_text'], result['text']
+    for k, v in (('coreg_change', -t['alignment_change_m']), ('coreg_lower', t['lower_after_alignment']),
+                 ('coreg_higher', t['higher_after_alignment']), ('magnitude', t['aligned_minus_label_m']),
+                 ('relief_median', t['relief_m']), ('off_model', t['level_m']), ('off_mola', t['mola_level_m'])):
+        worst = max(worst, difference(float(v), float(wt[k])))
+        n += 1
+    print(f'v3 manuscript table {V3_TABLE}: {n} values, largest difference {worst:.2e}')
+    ok &= worst < 1e-9
+    print(f'IMAGES CHECK {"PASS" if ok else "DIFF"}')
+    raise SystemExit(0)
+
+# values printed in the manuscript of release 1 (Table 1; Section 3.1; Texts S7 and S10)
 PAPER = {'all': (9.8, 10.6, 10.5, 0.75, 0.82, 1.9, 18.4, 0.33, 0.40, 3.2),
          'eq': (10.8, 11.9, 12.3, 0.77, 0.82, 2.0, 19.6, 0.31, 0.34, 3.3),
          'mid': (9.2, 10.1, 9.9, 0.75, 0.83, 1.5, 18.3, 0.40, 0.49, 2.6),

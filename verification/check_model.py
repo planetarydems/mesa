@@ -7,11 +7,20 @@ ORIG_CODE      directory with the original film_unet.py / implicit_solve.py /
                joint_shape_albedo.py (the run's own code)
 ORIG_RUN_DIR   run directory with config.json and checkpoints/best.pt
 OUT_CHECKPOINT where to write the released checkpoint (the original weights
-               without the unused `mola_weight` scalar)
+               without the unused `mola_weight` scalar), e.g. mesa_e098.pt
+
+The architecture of the released network comes from the packaged
+configuration named after OUT_CHECKPOINT (mesa/configs/mesa_e098.json for
+mesa_e098.pt, mesa_e088.json for mesa_e088.pt or mader_e088.pt), which must
+agree with the run's config.json; it is stored in the checkpoint (key
+'config') unless EMBED_CONFIG=0, which writes the layout of the v1.0.0 asset.
+An md5 of the checkpoint is written beside it.
 
 Compares the two networks on random inputs and, if a test manifest is given,
 on real test samples, in float32 on the CPU (bitwise) and on the GPU.
 """
+import hashlib
+import os
 import json
 import sys
 from pathlib import Path
@@ -20,7 +29,7 @@ import numpy as np
 import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from mesa.model import load_model  # noqa: E402
+from mesa.model import ARCH_KEYS, CONFIG_DIR, RELEASED, load_model, read_config  # noqa: E402
 
 orig_code, run_dir, out_ckpt = sys.argv[1:4]
 sys.path.insert(0, orig_code)
@@ -33,6 +42,7 @@ orig = FiLMUNetDualHead(
     sigma_lo=cfg['sigma_lo'], sigma_hi=cfg['sigma_hi'], conf_gamma=cfg['conf_gamma'], cg_iters=cfg['cg_iters'],
     cg_mu=cfg['cg_mu'], freeze_mu=cfg['freeze_mu'], grad_lambda=cfg['grad_lambda'],
     grad_cg_iters=cfg['grad_cg_iters'], trust_hidden=cfg['trust_hidden'], upsample_mode=cfg['upsample_mode'],
+    **({'down_mode': cfg['down_mode']} if 'down_mode' in cfg else {}),
     film_condition_dim=cfg['film_condition_dim'], relief_film=cfg['relief_film'],
     relief_solve=cfg['relief_solve'], film_sun_off=cfg.get('film_sun_off', False))
 ck = torch.load(Path(run_dir) / 'checkpoints' / 'best.pt', map_location='cpu', weights_only=False)
@@ -44,9 +54,22 @@ orig.eval()
 released = {k: v for k, v in state.items() if k != 'mola_weight'}
 print(f"dropped from the checkpoint: {sorted(set(state) - set(released))} "
       f"(value {float(state['mola_weight']):.4f}; the parameter is never used by the implicit fusion)")
-torch.save({'model': released, 'epoch': ck.get('epoch'),
-            'note': 'MESA DEM network, epoch 88'}, out_ckpt)
+rel_cfg = read_config(CONFIG_DIR / RELEASED[Path(out_ckpt).name])
+prod_arch = dict(in_channels=int(cfg['in_channels']), depths=list(cfg['depths']), dropout=float(cfg['dropout']),
+                 cg_iters=int(cfg['cg_iters']), upsample_mode=cfg['upsample_mode'],
+                 down_mode=cfg.get('down_mode', 'maxpool'))
+rel_arch = {k: rel_cfg[k] for k in ARCH_KEYS}
+assert rel_arch == prod_arch, (rel_arch, prod_arch)
+print(f'architecture (released configuration = run config.json): {rel_arch}')
+out = {'model': released, 'epoch': ck.get('epoch'), 'note': f"MESA DEM network, epoch {rel_cfg['epoch']}"}
+if os.environ.get('EMBED_CONFIG', '1') != '0':
+    out['config'] = rel_cfg
+torch.save(out, out_ckpt)
+md5 = hashlib.md5(Path(out_ckpt).read_bytes()).hexdigest()
+Path(str(out_ckpt) + '.md5').write_text(f'{md5}  {Path(out_ckpt).name}\n')
+print(f'wrote {out_ckpt} (md5 {md5})')
 clean = load_model(out_ckpt)
+assert clean.config == rel_arch, clean.config
 n_orig = sum(p.numel() for p in orig.parameters())
 n_clean = sum(p.numel() for p in clean.parameters())
 print(f'parameters: original {n_orig:,}, released {n_clean:,}')

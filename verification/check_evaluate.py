@@ -17,11 +17,19 @@ MOLA_TIF        the distributed MOLA mosaic
 
 The reference CSV rounds to 3 (MAE) and 4 (fine-scale) decimals; the released
 values, rounded the same way, must equal it for a matching configuration.
-This script now uses the common 168 m footprint. Historical reference tables
-may use an earlier footprint; mismatches remain visible at the same tolerance.
+
+Environment (for the paper's model, v3):
+  REF_TILES    the reference sample CSV (default REF_DIR/tiles/e088_tile_1k_test359.csv)
+  FOOTPRINT_M  anchoring footprint (default anchor.FOOTPRINT_M, 168 m; the
+               reference scorings of release 1 and v3 used 150 m)
+  SKIP_BINS=1  skip Table 2 (the v3 manuscript did not re-score its bins)
+  V3_TABLE     table1_v3_complete.json: compare the Table 1 tile cells with it
+OUT/tiles.csv is reused when it exists (verification/run_tiles_chunked.py
+writes it in parallel).
 """
 import csv
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -32,7 +40,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from mesa import evaluate as ev  # noqa: E402
 from mesa.data import TileDataset, load_incidence  # noqa: E402
 from mesa.model import load_model  # noqa: E402
-from mesa.anchor import FOOTPRINT_M  # noqa: E402
+from mesa.anchor import FOOTPRINT_M as DEFAULT_FOOTPRINT_M  # noqa: E402
+
+FOOTPRINT_M = float(os.environ.get('FOOTPRINT_M', DEFAULT_FOOTPRINT_M))
+print(f'anchoring footprint {FOOTPRINT_M} m')
 
 model_path, root, man_dir, pairs_file, ref, mola_1k, mola_audit, mola_bins, mola_tif, out = sys.argv[1:11]
 out = Path(out)
@@ -51,7 +62,7 @@ if not samples_csv.exists():
             for r in ev.read_rows(manifests, pairs)]
     ev.write_csv(samples_csv, [r for r in rows if r is not None])
 mine = {(r['dem_tile'], r['ctx_product_id']): r for r in csv.DictReader(open(samples_csv))}
-prod_csv = Path(ref) / 'tiles' / 'e088_tile_1k_test359.csv'
+prod_csv = Path(os.environ.get('REF_TILES', Path(ref) / 'tiles' / 'e088_tile_1k_test359.csv'))
 prod = {(r['dem_tile'], r['ctx_product_id']): r for r in csv.DictReader(open(prod_csv))}
 print(f'tiles: released {len(mine)} samples, production {len(prod)}; same samples {set(mine) == set(prod)}')
 ok &= set(mine) == set(prod)
@@ -87,6 +98,44 @@ d = max(abs(float(mine[k]['relief_m']) - float(pau[k[0]]['relief_m'])) for k in 
 print(f'  sample relief vs audit relief max |diff| {d:.2e}')
 
 # ---- Table 2: per-sample sums of every bin ---------------------------------------------------------
+if os.environ.get('SKIP_BINS') == '1':
+    t1 = ev.table1_tiles(list(mine.values()), list(mm.values()), pairs)
+    json.dump(dict(table1_tiles=t1), open(out / 'tables.json', 'w'), indent=1)
+    print('Table 1, tiles:', {k: (round(v, 4) if isinstance(v, float) else v) for k, v in t1.items()
+                              if not isinstance(v, dict)})
+    print('  by solar incidence:', {k: [round(v['label_mae'], 3), round(v['aligned_mae'], 3), round(v['share_pct'], 2)]
+                                    for k, v in t1['by_incidence'].items()})
+    print('  views:', {k: (round(v, 4) if isinstance(v, float) else v) for k, v in t1['views'].items()})
+    if os.environ.get('V3_TABLE'):
+        v3 = json.load(open(os.environ['V3_TABLE']))
+        # the manuscript's medians were taken over the reference CSV, whose MAEs carry 3 decimals and fine-scale
+        # measures 4: round the released samples the same way before taking the medians
+        dec = dict(label_mae=3, aligned_mae=3, fine_r=4, fine_amp=4, incidence_deg=2)
+        rounded = [{k: (round(float(v), dec[k]) if k in dec else v) for k, v in r.items()} for r in mine.values()]
+        t1 = ev.table1_tiles(rounded, list(mm.values()), pairs)
+        pairs_v3 = [(t1['label_mae'], v3['tiles_model']['label']), (t1['aligned_mae'], v3['tiles_model']['aligned']),
+                    (t1['fine_r'], v3['tiles_model']['r1k']), (t1['fine_amp'], v3['tiles_model']['amp1k']),
+                    (t1['error_relief_pct'], v3['tiles_model']['pct']), (t1['mola_mae'], v3['tiles_mola']['deploy']),
+                    (t1['mola_fine_r'], v3['tiles_mola']['r1k']), (t1['mola_fine_amp'], v3['tiles_mola']['amp1k']),
+                    (t1['mola_error_relief_pct'], v3['tiles_mola']['pct']),
+                    (t1['aligned_minus_label'], v3['tiles_text']['magnitude']),
+                    (t1['relief_m'], v3['tiles_text']['relief_median']),
+                    (t1['views']['sd_label'], v3['multiview']['sd_label']),
+                    (t1['views']['sd_aligned'], v3['multiview']['sd_aligned']),
+                    (100 * t1['views']['sd_label_frac'], v3['multiview']['frac']),
+                    (t1['views']['tiles'], v3['multiview']['n_tiles']),
+                    (t1['views']['tiles_over_5deg'], v3['multiview']['n_spread']),
+                    (t1['views']['sd_label_over_5deg'], v3['multiview']['sd_label_spread']),
+                    (t1['views']['sd_aligned_over_5deg'], v3['multiview']['sd_aligned_spread'])]
+        for b in v3['incidence']:
+            c = t1['by_incidence'][b['bin']]
+            pairs_v3 += [(c['label_mae'], b['label']), (c['aligned_mae'], b['aligned']), (c['share_pct'], b['share'])]
+        worst = max(abs(float(a) - float(b)) for a, b in pairs_v3)
+        print(f'v3 manuscript table {os.environ["V3_TABLE"]}: {len(pairs_v3)} values, largest difference {worst:.2e} '
+              f'(released samples rounded as the reference CSV)')
+        ok &= worst < 1e-6
+    print(f'EVALUATE CHECK {"PASS" if ok else "DIFF"}')
+    raise SystemExit(0)
 pairs_of = {'disagreement': 'disagree', 'shot_distance': 'dist_to_shot_m', 'slope': 'slope_deg',
             'aspect': 'aspect_rel_sun_deg', 'local_incidence': 'local_incidence_deg', 'shadowed': 'shadowed',
             'all': 'all_full'}

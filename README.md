@@ -8,10 +8,20 @@ mosaic (leveling against MOLA laser shots, gap infill, seam repair, cross-tile
 leveling), the per-pixel uncertainty layer and the image footprint product,
 together with the evaluation used in the paper.
 
-The released model is the network at epoch 88 (`mesa_e088.pt`); the global
-mosaic was built with it. The product was called MADER until October 2026;
-version 1.0.0 of this repository was published under that name and its weight
-file is `mader_e088.pt` (`CHANGELOG.md`).
+The version of the paper is v3 (tag `v3.0.0`). Its model is the network at
+epoch 98 with the B-spline decoder (`mesa_e098.pt`), the model of release v3
+of the global DEM (product tag `ta_implicit_d1_spline100s1_e098v3`, predicted
+in October 2026). The decoder upsamples with a fixed degree-4 B-spline and a
+3 x 3 convolution, which removes the 16/8/4/2 px lattice that the transposed
+convolutions of the epoch-88 network left in the output. The epoch-88 network
+(`mesa_e088.pt`), from which release 1 of the mosaic was built, is still
+supported. The architecture of each network is given by a configuration in
+`mesa/configs/`. `verification/README.md` records how this code reproduces
+the model, the predictions and the evaluation of the paper.
+
+The product was called MADER until October 2026. Version 1.0.0 of this
+repository was published under that name, and its weight file is
+`mader_e088.pt` (`CHANGELOG.md`).
 
 ## Layout
 
@@ -19,6 +29,7 @@ file is `mader_e088.pt` (`CHANGELOG.md`).
 mesa/
   model.py           network: U-Net with illumination (FiLM) conditioning, DEM and albedo
                      heads, and the fusion with MOLA solved inside the network (Eq. 3)
+  configs/           architecture of the released networks (mesa_e098.json, mesa_e088.json)
   data.py            training and test samples from the tiled stereo-DEM archive
   loss.py            training objective (Sec. 2.2)
   train.py           training (Sec. 2.4)
@@ -43,7 +54,7 @@ data/                small inputs the pipeline needs (see below)
 docs/pipeline.md     every step from the inputs to the mosaic, with the settings used
 docs/evaluation.md   the commands behind each table of the paper
 verification/        checks that this code reproduces the results of the paper and the mosaic
-v3/                  the scripts of release v3 as run on the cluster (see "v3 chain" below)
+v3/                  the scripts of release v3 of the global DEM as run on the cluster (see "v3 chain" below)
 PROVENANCE_v3.md     source path and md5 of every file under v3/
 VERIFY_v3.md         replay of one production v3 box from the scripts under v3/
 CHANGELOG.md         changes since the published version
@@ -62,6 +73,9 @@ are needed only to map project new CTX images (docs/pipeline.md, step 1).
 The results of the paper were computed with PyTorch 2.0, rasterio 1.4.3 and
 GDAL 3.9.3 (3.6.2 for the HiRISE scoring and the uncertainty calibration);
 other GDAL versions resample slightly differently (docs/evaluation.md).
+Floating-point results of the network depend on the device and the number of
+threads; the checks of `verification/` ran on the kinds of node and with the
+thread counts of production.
 
 ## Data
 
@@ -74,19 +88,21 @@ training archive) are listed in `docs/pipeline.md`. The `data/` directory holds:
 | `images_not_in_mosaic.csv` | the 20 queued placements whose prediction failed, with the reason (docs/pipeline.md, step 4) |
 | `test_pairs.txt` | the 359 test stereo pairs |
 | `test_manifest_{eq,mid,polar}.csv` | the test samples (tile, image) of the 375 pairs from which the test crops are drawn |
-| `test_images.csv` | for each test pair, the CTX image scored whole, its product tile, latitude, and its image-only co-registration with the stereo DEM |
-| `hirise_dems.csv`, `hirise_windows.csv`, `hirise_stereo_pairs.csv` | the 619 HiRISE DEMs, the predictions over them and the test pairs over them (Tables 3 and 4) |
+| `test_images.csv` | for each test pair, the CTX image scored whole (the image selected for release 1, kept for the paper), its product tile, latitude, and its image-only co-registration with the full stereo DEM of the pair |
+| `hirise_dems.csv`, `hirise_windows.csv`, `hirise_stereo_pairs.csv` | the 619 HiRISE DEMs, the 1,172 windows (predictions) over them with the outcome of their image co-registration in release 1, and the 149 test pairs over them with their full stereo DEMs, 132 of them scored at 98 DEMs (Tables 3 and 4) |
 | `pedr_field_matches.csv` | the image-to-orthoimage matches from which the PEDR field is fitted |
 | `orbit_screen/<tile>.txt` | MOLA passes left out of the leveling of 216 equatorial tiles |
 | `global_ctx_mosaic_fits.csv`, `global_ctx_mosaic_corrections.csv` | offsets between the two CTX reference mosaics, measured and applied |
 | `gap_census.npz` | shapes of the real gaps of the leveled tiles (infill training) |
 | `infill_tiles_split.tsv` | the 71 tiles used to train the infill networks, with their split |
 
-Network weights are attached to the release of this repository:
+Network weights are attached to the release of this repository (`mesa_e098.pt`
+to release v3.0.0; the other files to v1.0.0 and v3.0.0):
 
 | file | content | MD5 |
 |---|---|---|
-| `mesa_e088.pt` | DEM network, epoch 88 (21.8 M parameters). Release v1.0.0 attached this file as `mader_e088.pt`; `mesa.model.load_model` accepts either name and falls back to the other in the same directory | `2c027133a5f95346287015fe2e5b0142` |
+| `mesa_e098.pt` | DEM network of the paper, epoch 98, B-spline decoder (24.0 M parameters; configuration `mesa/configs/mesa_e098.json`, also stored in the file) | `997f5f87f3b94c3b304f82fa9e7504b4` |
+| `mesa_e088.pt` | DEM network of release 1 of the mosaic, epoch 88, transposed-convolution decoder (21.8 M parameters; `mesa/configs/mesa_e088.json`). Release v1.0.0 attached this file as `mader_e088.pt`; `mesa.model.load_model` accepts either name and falls back to the other in the same directory | `2c027133a5f95346287015fe2e5b0142` |
 | `infill_coarse.pt` | coarse infill network (108 m) | `a3630eceaaaaf5033ab7d7e0eb023e45` |
 | `infill_fine.pt` | fine infill network (18 m) | `3b2d9c94557b07191633443dbf13ab68` |
 | `infill_coarse_pretrained.pt` | coarse infill network trained on one tile, the start of the coarse training | `c0dbebeee199e457c3285abb7c7a2b64` |
@@ -97,21 +113,24 @@ Predict a DEM from one registered CTX image:
 
 ```bash
 python -m mesa.predict --image B01_009956_2169_aligned.vrt --inc 45.45 --az 262.89 \
-    --model mesa_e088.pt --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --pedr pedr.sqlite \
+    --model mesa_e098.pt --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --pedr pedr.sqlite \
     --out B01_009956_2169
 ```
 
-The prediction is fitted to the MOLA shots through a 168 m FWHM Gaussian
-footprint, also used by evaluation and leveling. Historical production
-comparisons are documented in `verification/README.md`; changing this
-configuration does not regenerate stored frames or scores.
+The network is built from the configuration stored in the weight file (or
+named after it, `mesa/configs/mesa_e098.json`; `--config` overrides it). The
+prediction is fitted to the MOLA shots through a 168 m FWHM Gaussian
+footprint, the value given in the paper and used by the leveling. The frames
+of the v3 product and the scores of the paper were computed with a 150 m
+footprint; `--footprint 150` reproduces them bit for bit, and the difference
+in the scores is a few millimetres (`verification/README.md`).
 
 Score the network on the test tiles (Table 1, tile rows):
 
 ```bash
-python -m mesa.evaluate tiles --model mesa_e088.pt --root mars_ctx_dem_v4_pedr \
+python -m mesa.evaluate tiles --model mesa_e098.pt --root mars_ctx_dem_v4_pedr \
     --manifest data/test_manifest_eq.csv,data/test_manifest_mid.csv,data/test_manifest_polar.csv \
-    --pairs data/test_pairs.txt --out tiles.csv
+    --pairs data/test_pairs.txt --out tiles.csv --footprint 150
 ```
 
 The other tables are described in `docs/evaluation.md`. The footprint product
@@ -122,7 +141,10 @@ polygons) is described in `docs/pipeline.md`, step 10.
 
 `verification/` holds the checks that compare this code with the code and
 products behind the paper, on the same inputs (results in
-`verification/README.md`).
+`verification/README.md`). For the version of the paper (v3) they cover the
+network, its training steps, the prediction of product frames, and Tables 1,
+3 and 4; for release 1 also the training samples, the registration, the
+mosaic stages, the uncertainty layer and Table 2.
 
 ## v3 chain
 
@@ -130,20 +152,25 @@ Release v3 of the global DEM (tag `ta_implicit_d1_spline100s1_e098v3`,
 predicted in October 2026) was built with the scripts under `v3/`. They were
 copied from the cluster without change. The source path and md5 of every file
 are listed in `PROVENANCE_v3.md`, the settings of each stage in
-`v3/README.md`, and the replay of one production box in `VERIFY_v3.md`. The
-`mesa` package remains the readable form of the release-1 pipeline. In v3 the
-model and the per-box stages after the infill were changed.
+`v3/README.md`, and the replay of one production box in `VERIFY_v3.md`. In v3
+the model and the per-box stages after the infill were changed. The `mesa`
+package holds the model of v3 and its prediction (`mesa.predict` with
+`mesa_e098.pt` and `--footprint 150` gives the v3 product frames bit for bit,
+`verification/README.md`) and the evaluation of the paper; for the stages
+after the prediction it remains the readable form of release 1, and the
+scripts under `v3/` are the record of what v3 ran.
 
 The stages, in order.
 
-1. Prediction (`v3/predict/`). The network is the spline-decoder model of
-   epoch 98 (`ta_impl_spline100_s1_fp32_e098`, config and checkpoint md5 in
-   `v3/model/`). Its decoder upsamples with a fixed B-spline and a 3 x 3
-   convolution in place of the transposed convolutions of epoch 88, which
-   removes the 16/8/4/2 px lattice of release 1. PEDR shots are queried over
-   all longitudes for frames that span 360 deg or reach within 2 deg of a
-   pole. A frame whose confidence input has a mean below 0.05 is recorded as
-   failed.
+1. Prediction (`v3/predict/`, and `mesa.predict` with `mesa_e098.pt`). The
+   network is the spline-decoder model of epoch 98
+   (`ta_impl_spline100_s1_fp32_e098`, config and checkpoint md5 in
+   `v3/model/`; the released weights are `mesa_e098.pt`). Its decoder
+   upsamples with a fixed B-spline and a 3 x 3 convolution in place of the
+   transposed convolutions of epoch 88, which removes the 16/8/4/2 px lattice
+   of release 1. PEDR shots are queried over all longitudes for frames that
+   span 360 deg or reach within 2 deg of a pole. A frame whose confidence
+   input has a mean below 0.05 is recorded as failed.
 2. Leveling (`v3/downstream/stages/level_box_tag_v3.sbatch`). Frames are
    leveled and blended as in release 1, with feathered demotion of weak
    frames and the raster border counted as a data edge. Per-box frame weights

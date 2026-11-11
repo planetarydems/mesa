@@ -20,9 +20,21 @@ U-Net, both described in Section 2.3 of the paper:
    solved with a fixed number of conjugate-gradient steps so that gradients
    flow through the solve.
 
+The decoder doubles the resolution four times. The model of the paper (epoch
+98, `mesa_e098.pt`) upsamples with a fixed degree-4 B-spline followed by a
+learned 3 x 3 convolution (`upsample_mode = spline_conv`). The model of release
+1 (epoch 88, `mesa_e088.pt`) used 2 x 2 transposed convolutions of stride 2
+(`deconv`), which write every coarse pixel into its own 2 x 2 block and leave a
+16/8/4/2 px lattice in the output. Both encoders downsample by 2 x 2 max-pooling
+(`down_mode = maxpool`). The architecture is read from a configuration
+(mesa/configs/*.json), never from the weights: the spline decoder has the
+same parameter shapes as a bilinear one, so the weights alone cannot tell
+which interpolator they were trained with.
+
 Tensor layout throughout: [batch, channel, row, column], rows increasing to the
 south and columns to the east. Elevations are standardised per window.
 """
+import json
 import math
 from pathlib import Path
 
@@ -154,6 +166,41 @@ class ChannelAttention(nn.Module):
         return x * w[:, :, None, None]
 
 
+class SplineUpsample2d(nn.Module):
+    """Fixed x2 upsampling by a degree-4 B-spline: zero insertion followed by the
+    separable kernel [1, 5, 10, 10, 5, 1] / 16 (= [1, 1] convolved five times),
+    with replicated borders. Each output phase sums to one, so constants are
+    exact and linear fields are reproduced; outputs sit where bilinear
+    interpolation with align_corners=False puts them. No parameters (the kernel
+    is a non-persistent buffer)."""
+
+    def __init__(self):
+        super().__init__()
+        k = torch.tensor([1.0, 5.0, 10.0, 10.0, 5.0, 1.0]) / 16.0
+        self.register_buffer('kernel', (k[:, None] * k[None, :]).view(1, 1, 6, 6), persistent=False)
+
+    def forward(self, x):
+        c = x.shape[1]
+        xp = F.pad(x, (1, 1, 1, 1), mode='replicate')
+        return F.conv_transpose2d(xp, self.kernel.to(x.dtype).expand(c, 1, 6, 6), stride=2, padding=4, groups=c)
+
+
+def upsampler(mode, in_ch, out_ch):
+    """One x2 step of the decoder."""
+    if mode == 'deconv':
+        return nn.ConvTranspose2d(in_ch, out_ch, 2, stride=2)
+    if mode == 'spline_conv':
+        return nn.Sequential(SplineUpsample2d(), nn.Conv2d(in_ch, out_ch, 3, padding=1))
+    raise ValueError(f'unknown upsample_mode {mode!r} (deconv or spline_conv)')
+
+
+def downsampler(mode):
+    """One /2 step of the encoder."""
+    if mode == 'maxpool':
+        return nn.MaxPool2d(2)
+    raise ValueError(f'unknown down_mode {mode!r} (maxpool)')
+
+
 # ---------------------------------------------------------------------------
 # Fusion with MOLA (Eq. 3)
 # ---------------------------------------------------------------------------
@@ -257,13 +304,18 @@ class MESA(nn.Module):
                             d_shot = exp(-d1 / 2000 m)
         cond  [B, 4]        solar vector (east, north, up) followed by rho
     returns (z, albedo): standardised elevation and albedo in [0, 1].
-    H and W should be multiples of 16.
+    H and W should be multiples of 16. upsample_mode and down_mode select the
+    resampling of the decoder and the encoder (module docstring); the defaults
+    are those of epoch 88.
     """
 
-    def __init__(self, in_channels=3, depths=(64, 128, 256, 512), dropout=0.1, cg_iters=25):
+    def __init__(self, in_channels=3, depths=(64, 128, 256, 512), dropout=0.1, cg_iters=25,
+                 upsample_mode='deconv', down_mode='maxpool'):
         super().__init__()
         depths = list(depths)
         self.depths = depths
+        self.config = dict(in_channels=int(in_channels), depths=depths, dropout=float(dropout),
+                           cg_iters=int(cg_iters), upsample_mode=upsample_mode, down_mode=down_mode)
         self.film_gen = FiLMGenerator(condition_dim=3, hidden_dim=128, feature_dims=depths)
 
         self.enc_blocks = nn.ModuleList()
@@ -271,7 +323,7 @@ class MESA(nn.Module):
         prev = in_channels
         for d in depths:
             self.enc_blocks.append(ConvBlock(prev, d, dropout))
-            self.downsample.append(nn.MaxPool2d(2))
+            self.downsample.append(downsampler(down_mode))
             prev = d
         self.bottleneck = ConvBlock(depths[-1], depths[-1], dropout)
         self.bottleneck_attn = ChannelAttention(depths[-1])
@@ -280,7 +332,7 @@ class MESA(nn.Module):
         self.dec_blocks = nn.ModuleList()
         for i, d in enumerate(reversed(depths)):
             up_in = depths[-1] if i == 0 else depths[len(depths) - i]
-            self.upsample.append(nn.ConvTranspose2d(up_in, d, 2, stride=2))
+            self.upsample.append(upsampler(upsample_mode, up_in, d))
             self.dec_blocks.append(ConvBlock(2 * d, d, dropout))
 
         # channel 0: elevation estimate u; channel 1: albedo logit
@@ -319,7 +371,33 @@ class MESA(nn.Module):
         return z, torch.sigmoid(out[:, 1:2])
 
 
-RELEASED_WEIGHTS = ('mesa_e088.pt', 'mader_e088.pt')    # one file; v1.0.0 published it under the former name
+CONFIG_DIR = Path(__file__).resolve().parent / 'configs'
+ARCH_KEYS = ('in_channels', 'depths', 'dropout', 'cg_iters', 'upsample_mode', 'down_mode')
+# Released weight files and their configurations. Release v1.0.0 published the
+# epoch-88 weights as `mader_e088.pt`; the file is the same as `mesa_e088.pt`.
+RELEASED = {'mesa_e098.pt': 'mesa_e098.json', 'mesa_e088.pt': 'mesa_e088.json', 'mader_e088.pt': 'mesa_e088.json'}
+
+
+def read_config(config):
+    """A model configuration from a dict, a JSON file or the name of a packaged
+    configuration (`mesa_e098`, `mesa_e088`)."""
+    if isinstance(config, dict):
+        cfg = dict(config)
+    else:
+        p = Path(config)
+        if not p.exists() and (CONFIG_DIR / f'{p.stem}.json').exists():
+            p = CONFIG_DIR / f'{p.stem}.json'
+        cfg = json.loads(p.read_text())
+    missing = [k for k in ('upsample_mode', 'down_mode') if k not in cfg]
+    if missing:
+        raise ValueError(f'model configuration without {missing}')
+    return cfg
+
+
+def build(config):
+    """MESA built from a configuration (read_config)."""
+    cfg = read_config(config)
+    return MESA(**{k: cfg[k] for k in ARCH_KEYS if k in cfg})
 
 
 def weights_path(path):
@@ -327,21 +405,50 @@ def weights_path(path):
     `mader_e088.pt` in the same directory, the name of the v1.0.0 release
     asset, and the other way round."""
     p = Path(path)
-    if p.exists() or p.name not in RELEASED_WEIGHTS:
+    if p.exists() or p.name not in ('mesa_e088.pt', 'mader_e088.pt'):
         return p
-    for name in RELEASED_WEIGHTS:
+    for name in ('mesa_e088.pt', 'mader_e088.pt'):
         if p.with_name(name).exists():
             return p.with_name(name)
     return p
 
 
-def load_model(path, device='cpu'):
-    """Build MESA and load released weights (a file written by train.py or the
-    released checkpoint, `mesa_e088.pt`, also accepted under its v1.0.0 name
-    `mader_e088.pt`). Refuses a partial load."""
-    ckpt = torch.load(weights_path(path), map_location='cpu', weights_only=False)
-    state = ckpt['model'] if isinstance(ckpt, dict) and 'model' in ckpt else ckpt
-    state = {k.removeprefix('_forward_module.').removeprefix('module.'): v for k, v in state.items()}
-    model = MESA()
+def strip_prefixes(state):
+    return {k.removeprefix('_forward_module.').removeprefix('module.'): v for k, v in state.items()}
+
+
+def resolve_config(path, ckpt, config=None):
+    """The configuration of a weight file, in this order: the `config` argument;
+    the configuration stored in the file (the released weights and the files
+    written by train.py carry one); `<weights>.json` beside the file; the
+    packaged configuration of a released file name. A state dict with
+    transposed convolutions (`upsample.0.weight`) and no configuration is the
+    epoch-88 network. Any other decoder without a configuration is refused,
+    because its interpolator cannot be read from the weights."""
+    if config is not None:
+        return read_config(config)
+    if isinstance(ckpt, dict) and isinstance(ckpt.get('config'), dict):
+        return read_config(ckpt['config'])
+    p = Path(path)
+    if p.with_suffix('.json').exists():
+        return read_config(p.with_suffix('.json'))
+    if p.name in RELEASED:
+        return read_config(CONFIG_DIR / RELEASED[p.name])
+    state = strip_prefixes(ckpt['model'] if isinstance(ckpt, dict) and 'model' in ckpt else ckpt)
+    if 'upsample.0.weight' in state:
+        return read_config(CONFIG_DIR / 'mesa_e088.json')
+    raise ValueError(f'{path}: no model configuration; pass config= (for example mesa/configs/mesa_e098.json)')
+
+
+def load_model(path, device='cpu', config=None):
+    """Build MESA from its configuration (resolve_config) and load the weights:
+    a released file (`mesa_e098.pt`, the model of the paper, or `mesa_e088.pt`,
+    also accepted under its v1.0.0 name `mader_e088.pt`) or a file written by
+    train.py. Refuses a partial load."""
+    p = weights_path(path)
+    ckpt = torch.load(p, map_location='cpu', weights_only=False)
+    cfg = resolve_config(p, ckpt, config)
+    state = strip_prefixes(ckpt['model'] if isinstance(ckpt, dict) and 'model' in ckpt else ckpt)
+    model = build(cfg)
     model.load_state_dict(state, strict=True)
     return model.to(device).eval()

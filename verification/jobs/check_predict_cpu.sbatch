@@ -18,8 +18,8 @@ MOLA=$G/data/Mars_MGS_MOLA_DEM_mosaic_global_463m.tiff; PEDR=$G/Stored_Data_for_
 TAG=ta_implicit_d1_implrel100s1_e088; B=$G/global_run/boxes
 mkdir -p $O/cpu; cd $C
 echo "=== $(hostname) $(date)"
-python3 verification/check_model.py $ORIG $M $O/cpu/mader_e088.pt
-python3 verification/check_predict.py $O/cpu/mader_e088.pt $MOLA $PEDR $O/predict_cpu $TAG $B \
+EMBED_CONFIG=0 python3 verification/check_model.py $ORIG $M $O/cpu/mader_e088.pt
+FOOTPRINT_M=150 RELEASE1_RULES=1 python3 verification/check_predict.py $O/cpu/mader_e088.pt $MOLA $PEDR $O/predict_cpu $TAG $B \
   Ep090_N-70 B09_013265_1194 $B/Ep090_N-70/box_run/aligned_pedr/B09_013265_1194_aligned.vrt 47.85 295.95000000000005 \
   Ep050_Np30 B01_009956_2169 $B/Ep050_Np30/box_run/aligned_pedr/B01_009956_2169_aligned.vrt 45.45 262.89
 echo "=== done $(date)"

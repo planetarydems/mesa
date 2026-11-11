@@ -77,8 +77,8 @@ ground metres (the window's projection scaled at its centre).
         --out hirise_tables.json
 
 The tables of data/ give the 619 HiRISE DEMs (618 of them have a window with
-enough pixels), their 1,172 windows and the 95 test pairs over them, with paths
-relative to the working directory:
+enough pixels), their 1,172 windows and the 149 test pairs over them (132 of
+them are scored, at 98 DEMs), with paths relative to the working directory:
 
 hirise_dems.csv           one row per HiRISE DEM: dem, dem_path (the PDS
                           DTM, hirise_dtm/), ortho_path (its orthoimage, JP2
@@ -89,11 +89,19 @@ hirise_dems.csv           one row per HiRISE DEM: dem, dem_path (the PDS
 hirise_windows.csv        one row per (HiRISE DEM, CTX image): dem, image,
                           tile, prediction (directory written by mesa.predict,
                           preds/<tile>/<image>), registered_image (the image it
-                          was predicted from, aligned_pedr/<tile>/)
-hirise_stereo_pairs.csv   one row per stereo pair: pair, dem_path (its stereo
-                          DEM, labels/ from mesa.evaluate_images labels),
-                          orthoimages (its tied orthoimages, ';'-separated, in
-                          the order tried)
+                          was predicted from, aligned_pedr/<tile>/), and
+                          registered_r1 (1 or 0, optional; see below)
+hirise_stereo_pairs.csv   one row per stereo pair: pair, dem_path (its full
+                          stereo DEM, stereo_dems_full/, as scored by
+                          mesa.evaluate_images), orthoimages (its tied
+                          orthoimages, ';'-separated, in the order tried)
+
+The paper (v3) keeps the HiRISE windows of release 1 and their outcome of the
+image co-registration: a window whose co-registration was not accepted in
+release 1 (registered_r1 = 0) is not co-registered, even where its image now
+passes the gate (5 windows, whose v3 prediction covers a slightly different
+extent). The image shifts of the accepted windows are recomputed and equal
+those of release 1. Without the column the gate alone decides.
 """
 import argparse
 import csv
@@ -565,6 +573,8 @@ def score_window(win, hirise, dem_bounds, dem_crs, ortho, stereo, mola_path):
         rec['registration'] = dict(accepted=False, why='too_little_overlap')
         return rec
     reg = register_images(ctx6, ortho6) or dict(accepted=False, why='too_few_px')
+    if reg.get('accepted') and win.get('registered_r1', '') == '0':
+        reg = dict(reg, accepted=False, why='not co-registered in release 1')
     rec['registration'] = reg
     if not reg['accepted']:
         return rec

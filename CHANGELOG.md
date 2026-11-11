@@ -1,5 +1,50 @@
 # Changelog
 
+## 3.0.0 (November 2026, tag `v3.0.0`): the version of the paper
+
+* The model of the paper: the epoch-98 network with the B-spline decoder
+  (`mesa_e098.pt`, md5 `997f5f87f3b94c3b304f82fa9e7504b4`, exported from run
+  `ta_impl_spline100_s1_fp32_e098`, checkpoint md5
+  `96de121dea9e271212a93df39d6b7f45`), the model of release v3 of the global
+  DEM. `mesa.model` gains the B-spline upsampler (`SplineUpsample2d`, a fixed
+  degree-4 B-spline x2 followed by a learned 3 x 3 convolution,
+  `upsample_mode = spline_conv`) and builds the network from a configuration
+  (`mesa/configs/mesa_e098.json`, `mesa_e088.json`; `mesa.model.build`,
+  `read_config`). `load_model` takes the configuration from its `config`
+  argument, from the weight file, from a JSON file beside it or from the
+  packaged configuration of a released file name, and refuses weights of a
+  decoder other than the transposed convolution without one: the B-spline
+  and bilinear decoders have the same parameter shapes, so the weights cannot
+  tell them apart. The epoch-88 network loads as before.
+* `mesa.train --config` (default `mesa_e098.json`); the configuration is
+  stored in every checkpoint.
+* `mesa.predict` applies the two rules of the v3 prediction: PEDR shots over
+  all longitudes for a frame that spans 360 deg of longitude or reaches within
+  2 deg of a pole (`PedrDatabase(full_lon_near_poles=True)`), and no
+  prediction when the shot-distance input averages below 0.05
+  (`--min-conf-mean`). New option `--config`.
+* Evaluation of the paper. `data/test_images.csv` holds the co-registration of
+  each test image with the full stereo DEM of its pair (the transforms of the
+  manuscript's v3 scoring; methods `tile_region_rigid` and
+  `tile_region_shift` added to `mesa.evaluate_images`), and the whole images
+  are scored against the full stereo DEMs. `data/hirise_*.csv` hold the
+  windows of release 1 with their v3 predictions, the outcome of their image
+  co-registration in release 1 (`registered_r1`, honoured by
+  `mesa.evaluate_hirise`) and the test pairs over the full stereo DEMs
+  (149 listed, 132 scored at 98 HiRISE DEMs).
+* Verification of v3 (`verification/README.md`, section "Version 3.0.0"):
+  the network, 4 training steps and 3 product frames against production, and
+  Table 1 (tiles and whole images) and Tables 3 and 4 against the
+  manuscript's v3 scoring. New scripts
+  `make_test_images_v3.py`, `make_hirise_inputs_v3.py`,
+  `run_tiles_chunked.py` and the jobs `verification/jobs/v3_*.sbatch`.
+  `check_model.py`, `check_predict.py`, `check_train_steps.py`,
+  `check_evaluate.py`, `check_images.py` and `check_hirise.py` take the
+  model configuration and the v3 references; the release-1 job scripts pass
+  the release-1 settings explicitly.
+* Documentation: README, `docs/evaluation.md` and `docs/pipeline.md` describe
+  the v3 model and the commands behind the numbers of the paper.
+
 ## v3 chain (November 2026, tag `mesa-v3-code`)
 
 * New directory `v3/` with the scripts of the v3 production chain (tag
@@ -17,9 +62,10 @@
   (`v3/verification/check_box_v3.sbatch`).
 * Nothing in `mesa/`, `data/` or `docs/` changed for v3.
 
-## 1.1.0 (unreleased, October 2026)
+## 1.1.0 (October 2026, not tagged)
 
-Working tree after the author's decisions of 2026-10-14; not yet committed or tagged.
+Working tree after the author's decisions of 2026-10-14, committed on branch
+`v3-code` (380da6e) and included in 3.0.0.
 
 * Uncertainty layer calibrated on the assembled mosaic (2026-10-16, revision
   Task 21). `mesa.uncertainty` gains `calibrate-mosaic`, `mosaic-lut`, `remap`

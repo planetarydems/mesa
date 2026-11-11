@@ -5,11 +5,18 @@ At each of the 359 test pairs one CTX image of the product, usually not one of
 the two images of the pair, was predicted whole by mesa.predict in one product
 tile (pred_shot_anchor.tif: shot-anchored, before any levelling).
 data/test_images.csv names the image and the tile, the pair's latitude band and
-latitude (centre of the stereo DEM's grid), its stereo DEM and the
-co-registration of the image with the pair.
+latitude (centre of the grid of its test tiles), its stereo DEM and the
+co-registration of the image with the pair. The image of each pair is the one
+selected for release 1 and kept for the paper (v3).
 
-Stereo DEM. The pair's test tiles of the archive merged on their common grid
-(18 m, the pair's own projection), no-data where no tile has a value (`labels`).
+Stereo DEM. The paper scores each image against the full stereo DEM of its
+pair (18 m, the pair's own projection; `<pair>.tif` in the directory given to
+`score`): the tied DEM of the stereo pipeline without hole filling, or the
+filled DEM masked to the pixels of the tied DEM, cropped to its valid
+extent. These DEMs are part of the evaluation data of the paper. `labels`
+rebuilds the stereo DEMs that release 1 scored against, the pair's test tiles
+of the archive merged on their common grid (no-data where no tile has a
+value), which cover only the test tiles of the pair.
 
 Grid. The prediction and the MOLA gridded DEM as distributed (463 m, its own
 georeferencing) are warped onto the stereo DEM's grid by bilinear interpolation
@@ -25,18 +32,23 @@ and least squares to SIFT matches between the CTX image and an orthoimage of the
 stereo pair (the images of its test tiles where it has none), kept where 12 km
 correlation windows or the pair's other orthoimage confirm it, otherwise the
 consensus shift of the windows, and failing that the shift of the whole overlap
-(Section 2.8, Text S7). Methods in data/test_images.csv:
+(Section 2.8, Text S7). The transforms of data/test_images.csv were fitted
+over the overlap of each image with the full stereo DEM; where that fit was
+not accepted and the stereo DEM is the one of release 1, the transform fitted
+on the region of the test tiles is used (three pairs). Methods:
   rotation+shift  T maps pixel coordinates of a reference grid (spacing
-                  ref_spacing_m, top-left corner ref_left, ref_top in the stereo
-                  DEM's projection, counted from the crop ref_row0, ref_col0);
-                  each stereo-DEM pixel takes the prediction at T applied to its
-                  centre, by cubic-spline interpolation. No-data is first filled
-                  from the nearest valid pixel (the spline prefilter cannot take
-                  it), and pixels whose bilinear support touches no-data are left
-                  out.
+  tile_region_rigid  ref_spacing_m, top-left corner ref_left, ref_top in the
+                  stereo DEM's projection, counted from the crop ref_row0,
+                  ref_col0); each stereo-DEM pixel takes the prediction at T
+                  applied to its centre, by cubic-spline interpolation. No-data
+                  is first filled from the nearest valid pixel (the spline
+                  prefilter cannot take it), and pixels whose bilinear support
+                  touches no-data are left out.
   shift           the consensus shift of the windows,
-  original_shift  the shift of the whole overlap, both in whole stereo-DEM
-                  pixels: aligned[r, c] = pred[r + shift_rows, c + shift_cols]
+  original_shift  the shift of the whole overlap,
+  tile_region_shift  the consensus shift on the region of the test tiles, all in
+                  whole stereo-DEM pixels:
+                  aligned[r, c] = pred[r + shift_rows, c + shift_cols]
   none            not co-registered (deployMAE only)
 
 Measures, over the pixels where the surface and the stereo DEM are both valid:
@@ -57,10 +69,7 @@ measures and error / relief. `tables` also gives the statistics of Section 3.1:
 the change of the error with co-registration, the level in place, the pairs
 poleward of 80 deg (|lat| >= 80) and the classes of in-place relief.
 
-    python -m mesa.evaluate_images labels --root mars_ctx_dem_v4_pedr \\
-        --manifest data/test_manifest_eq.csv,data/test_manifest_mid.csv,data/test_manifest_polar.csv \\
-        --pairs data/test_pairs.txt --out labels
-    python -m mesa.evaluate_images score --images data/test_images.csv --labels labels \\
+    python -m mesa.evaluate_images score --images data/test_images.csv --labels stereo_dems_full \\
         --preds preds --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --out images.csv
     python -m mesa.evaluate_images tables --scores images.csv --out images_tables.json
 
@@ -194,11 +203,11 @@ def shift(a, dr, dc):
 def coregister(pred, transform, row):
     """The prediction co-registered with the stereo DEM as row of
     data/test_images.csv says, or None."""
-    if row['method'] == 'rotation+shift':
+    if row['method'] in ('rotation+shift', 'tile_region_rigid'):
         T = np.array([[float(row[k]) for k in ('t00', 't01', 't02')], [float(row[k]) for k in ('t10', 't11', 't12')]])
         return rotate_shift(pred, transform, T, (int(row['ref_row0']), int(row['ref_col0'])),
                             float(row['ref_spacing_m']), float(row['ref_left']), float(row['ref_top']))
-    if row['method'] in ('shift', 'original_shift'):
+    if row['method'] in ('shift', 'original_shift', 'tile_region_shift'):
         return shift(pred, int(row['shift_rows']), int(row['shift_cols']))
     return None
 
@@ -330,14 +339,14 @@ def print_tables(result):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
-    lb = sub.add_parser('labels', help='stereo DEM of every test pair from its test tiles')
+    lb = sub.add_parser('labels', help='stereo DEM of every test pair from its test tiles (release 1)')
     lb.add_argument('--root', required=True, help='test archive')
     lb.add_argument('--manifest', required=True, help='comma-separated test manifests')
     lb.add_argument('--pairs', required=True)
     lb.add_argument('--out', required=True, help='directory for <pair>.tif')
     sc = sub.add_parser('score', help='measures of every test pair')
     sc.add_argument('--images', required=True, help='data/test_images.csv')
-    sc.add_argument('--labels', required=True, help='directory of the stereo DEMs')
+    sc.add_argument('--labels', required=True, help='directory of the stereo DEMs, <pair>.tif')
     sc.add_argument('--preds', required=True, help='PREDS/<tile>/<image>/pred_shot_anchor.tif')
     sc.add_argument('--mola', required=True, help='Mars_MGS_MOLA_DEM_mosaic_global_463m.tif')
     sc.add_argument('--out', required=True, help='CSV, one row per pair')

@@ -1,0 +1,11 @@
+{
+ "name": "mesa_e098",
+ "description": "MESA DEM network of the paper: epoch 98 of run ta_impl_spline100_s1_fp32 (seed 1), B-spline decoder",
+ "epoch": 98,
+ "in_channels": 3,
+ "depths": [64, 128, 256, 512],
+ "dropout": 0.1,
+ "cg_iters": 25,
+ "upsample_mode": "spline_conv",
+ "down_mode": "maxpool"
+}
