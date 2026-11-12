@@ -2,7 +2,7 @@
 
 This page gives, for each table of the paper, the command that computes it and
 the inputs it needs. The network is `mesa_e098.pt`, the epoch-98 network with
-the B-spline decoder (v3); the test set is the 359 stereo pairs of
+the B-spline decoder (version 1); the test set is the 359 stereo pairs of
 `data/test_pairs.txt`. Medians are over samples (tiles), test pairs (whole
 images) or HiRISE DEMs, as in the table captions. The commands below reproduce
 the numbers of the paper; `verification/README.md` records the check of every
@@ -11,7 +11,7 @@ number against the manuscript's own scoring.
 Anchoring footprint. The paper gives 168 m for the full width at half maximum
 of the footprint through which a prediction is fitted to the PEDR shots, and
 168 m is the default of `mesa.predict`, `mesa.evaluate tiles` and
-`mesa.evaluate bins`. The frames of the v3 product, from which the
+`mesa.evaluate bins`. The frames of version 1 of the product, from which the
 whole-image and HiRISE rows are scored, and the tile scores of the paper were
 computed with 150 m. The commands below pass `--footprint 150` where the
 footprint enters; with 168 m the medians change by a few millimetres
@@ -55,7 +55,7 @@ consistency between views of a tile (standard deviation of labelMAE between
 the images of a tile). On a CPU the 6,396 samples take about 8 h on four
 threads; `verification/run_tiles_chunked.py` runs them in parallel processes.
 
-Expected values (v3): labelMAE 7.18 m, alignedMAE 10.38 m, `<1 km` r 0.773 and
+Expected values (version 1): labelMAE 7.18 m, alignedMAE 10.38 m, `<1 km` r 0.773 and
 amplitude 0.782, error 4.61 % of relief; MOLA 16.68 m, 0.336, 0.368, 7.65 %.
 
 ## Table 2
@@ -92,7 +92,7 @@ weighted by its pixels in the bin. The MOLA row of the shot-distance block is
 MOLA as distributed, warped bilinearly onto each crop. Bin edges belong to the
 lower bin (a pixel at exactly 20 m of disagreement is in 0-20 m). The binning
 was checked against the manuscript's scoring of epoch 88
-(`verification/README.md`); the v3 manuscript did not re-score the bins.
+(`verification/README.md`); the manuscript did not re-score the bins.
 
 ## Table 1, whole-image rows
 
@@ -101,7 +101,7 @@ evaluation data of the paper: the tied DEM of the stereo pipeline without hole
 filling, or the filled DEM masked to the tied DEM's pixels, cropped to its
 valid extent), the whole-image predictions of the images named in
 `data/test_images.csv` (`mesa.predict --footprint 150`, one per pair, written
-to `preds/<tile>/<image>/`; these are the frames of the v3 product), and the
+to `preds/<tile>/<image>/`; these are the frames of version 1 of the product), and the
 MOLA gridded DEM as distributed.
 
 ```bash
@@ -110,7 +110,7 @@ python -m mesa.evaluate_images score --images data/test_images.csv --labels ster
 python -m mesa.evaluate_images tables --scores images.csv --out tables_images.json
 ```
 
-The image of each pair is the one selected for release 1 and kept for the
+The image of each pair is the one selected for pre-release R1 and kept for the
 paper. The co-registration of each image with its stereo DEM was measured from
 the images alone and does not depend on the model, so it is given in
 `data/test_images.csv` and applied as it is: a rotation and shift (319 pairs,
@@ -126,12 +126,12 @@ of Table 1 and the statistics of Section 3.1 (the change with
 co-registration, the level in place, the pairs poleward of 80 deg and the
 classes of relief).
 
-Expected values (v3), all latitudes: labelMAE 11.29 m, alignedMAE 11.65 m,
+Expected values (version 1), all latitudes: labelMAE 11.29 m, alignedMAE 11.65 m,
 deployMAE 11.67 m, `<1 km` r 0.730 and amplitude 0.807, error 1.34 % of relief;
 MOLA 18.97 m, 0.313, 0.368, 2.29 %. The model is better than MOLA at 342 of
 the 359 pairs.
 
-Release 1 scored the whole images against stereo DEMs merged from the test
+Pre-release R1 scored the whole images against stereo DEMs merged from the test
 tiles (`mesa.evaluate_images labels`), which cover only the test tiles of a
 pair, with transforms fitted on those tiles.
 
@@ -141,7 +141,7 @@ Inputs, laid out as the tables in `data/` expect (paths relative to the
 working directory): the HiRISE DTMs and their orthoimages from the PDS
 (`hirise_dtm/`, `hirise_ortho/`, each JP2 with its `.LBL`), the predictions of
 the CTX images over them (`preds/<tile>/<image>/`, from `mesa.predict
---footprint 150`; the frames of the v3 product) and the registered images
+--footprint 150`; the frames of version 1 of the product) and the registered images
 they were predicted from (`aligned_pedr/<tile>/`), the full stereo DEMs of the
 test pairs (`stereo_dems_full/`, as for the whole images) and their tied
 orthoimages (`orthoimages/<stereo directory>/`), and the MOLA gridded DEM as
@@ -156,11 +156,11 @@ python -m mesa.evaluate_hirise tables --dems data/hirise_dems.csv --scores hiris
 ```
 
 Every HiRISE DEM is compared with each prediction that covers it (the 1,172
-windows of release 1 over 619 DEMs; 618 have a window with enough pixels). The
+windows of pre-release R1 over 619 DEMs; 618 have a window with enough pixels). The
 CTX image of a window is co-registered with the HiRISE orthoimage by masked
 normalised cross-correlation of high-passed images, with a coarser band-pass
 estimate as fallback. The paper keeps the outcome of this co-registration
-from release 1 (column `registered_r1` of `data/hirise_windows.csv`): 1,088
+from pre-release R1 (column `registered_r1` of `data/hirise_windows.csv`): 1,088
 windows at 581 DEMs are co-registered. A DEM's value is the mean over its
 windows, and Table 3 gives medians over DEMs. Table 4 pools the
 difference-of-Gaussian band statistics over the DEMs. The stereo rows compare
@@ -171,7 +171,7 @@ training ground, latitude bands, slope error, image shift, change with
 alignment and rescaling, scale, the poles). The scoring takes about an hour
 on 36 cores.
 
-Expected values (v3): deployMAE 8.56 m against 17.82 m for MOLA over 618 DEMs;
+Expected values (version 1): deployMAE 8.56 m against 17.82 m for MOLA over 618 DEMs;
 at the 581 co-registered, labelMAE 8.02 m, alignedMAE 8.59 m, deployMAE
 8.62 m, MOLA 18.51 m; at the 98 DEMs with a stereo DEM, labelMAE 9.68 m
 (stereo 5.70 m), alignedMAE 10.05 m (8.78 m), deployMAE 11.19 m (9.99 m).

@@ -13,7 +13,7 @@ with a Hann weight.
         --mola Mars_MGS_MOLA_DEM_mosaic_global_463m.tif --pedr pedr.sqlite \
         --out preds/B01_009956_2169
 
-Two rules of the v3 prediction apply to any model. PEDR shots are queried
+Two rules of the prediction of version 1 apply to any model. PEDR shots are queried
 over all longitudes when the frame spans 360 deg of longitude or reaches
 within 2 deg of a pole (pedr.PedrDatabase, full_lon_near_poles). A frame
 whose shot-distance input has a mean below 0.05 (as printed to three
@@ -25,7 +25,7 @@ only, no shots), ctx_on_grid.tif and mola_on_grid.tif.
 
 The shots are compared with the prediction through a 168 m Gaussian footprint
 (anchor.FOOTPRINT_M), matching the evaluation and leveling configuration. The
-frames of the v3 product were anchored through a 150 m footprint
+frames of version 1 of the product were anchored through a 150 m footprint
 (--footprint 150 reproduces them; verification/README.md).
 """
 import argparse
@@ -49,7 +49,7 @@ TILE, STRIDE = 384, 192
 NODATA = -9999.0
 STD_FLOOR_M = 5.0
 MIN_VALID = 0.25          # windows with less valid image are skipped
-MIN_CONF_MEAN = 0.05      # v3: a frame whose shot-distance input averages less is refused
+MIN_CONF_MEAN = 0.05      # version 1: a frame whose shot-distance input averages less is refused
 
 
 def northup_grid(transform, width, height, px=PIXEL):

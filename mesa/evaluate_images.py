@@ -7,14 +7,14 @@ tile (pred_shot_anchor.tif: shot-anchored, before any levelling).
 data/test_images.csv names the image and the tile, the pair's latitude band and
 latitude (centre of the grid of its test tiles), its stereo DEM and the
 co-registration of the image with the pair. The image of each pair is the one
-selected for release 1 and kept for the paper (v3).
+selected for pre-release R1 and kept for the paper (version 1).
 
 Stereo DEM. The paper scores each image against the full stereo DEM of its
 pair (18 m, the pair's own projection; `<pair>.tif` in the directory given to
 `score`): the tied DEM of the stereo pipeline without hole filling, or the
 filled DEM masked to the pixels of the tied DEM, cropped to its valid
 extent. These DEMs are part of the evaluation data of the paper. `labels`
-rebuilds the stereo DEMs that release 1 scored against, the pair's test tiles
+rebuilds the stereo DEMs that pre-release R1 scored against, the pair's test tiles
 of the archive merged on their common grid (no-data where no tile has a
 value), which cover only the test tiles of the pair.
 
@@ -34,7 +34,7 @@ correlation windows or the pair's other orthoimage confirm it, otherwise the
 consensus shift of the windows, and failing that the shift of the whole overlap
 (Section 2.8, Text S7). The transforms of data/test_images.csv were fitted
 over the overlap of each image with the full stereo DEM; where that fit was
-not accepted and the stereo DEM is the one of release 1, the transform fitted
+not accepted and the stereo DEM is the one of pre-release R1, the transform fitted
 on the region of the test tiles is used (three pairs). Methods:
   rotation+shift  T maps pixel coordinates of a reference grid (spacing
   tile_region_rigid  ref_spacing_m, top-left corner ref_left, ref_top in the
@@ -339,7 +339,7 @@ def print_tables(result):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
-    lb = sub.add_parser('labels', help='stereo DEM of every test pair from its test tiles (release 1)')
+    lb = sub.add_parser('labels', help='stereo DEM of every test pair from its test tiles (pre-release R1)')
     lb.add_argument('--root', required=True, help='test archive')
     lb.add_argument('--manifest', required=True, help='comma-separated test manifests')
     lb.add_argument('--pairs', required=True)

@@ -17,7 +17,7 @@ from .geo import lonlat_to_xy, query_box
 class PedrDatabase:
     """Read-only access to the PEDR shot table.
 
-    full_lon_near_poles=True applies the rule of the v3 prediction: a box whose
+    full_lon_near_poles=True applies the rule of the prediction of version 1: a box whose
     longitude span is 360 deg or more, or that reaches within 2 deg of a pole,
     is queried over all longitudes of its latitude band. Without the rule such
     a box (a frame rotated near a pole spans more than 360 deg of longitude)

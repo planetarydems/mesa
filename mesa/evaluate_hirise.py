@@ -96,12 +96,12 @@ hirise_stereo_pairs.csv   one row per stereo pair: pair, dem_path (its full
                           mesa.evaluate_images), orthoimages (its tied
                           orthoimages, ';'-separated, in the order tried)
 
-The paper (v3) keeps the HiRISE windows of release 1 and their outcome of the
+The paper (version 1) keeps the HiRISE windows of pre-release R1 and their outcome of the
 image co-registration: a window whose co-registration was not accepted in
-release 1 (registered_r1 = 0) is not co-registered, even where its image now
-passes the gate (5 windows, whose v3 prediction covers a slightly different
+pre-release R1 (registered_r1 = 0) is not co-registered, even where its image now
+passes the gate (5 windows, whose version-1 prediction covers a slightly different
 extent). The image shifts of the accepted windows are recomputed and equal
-those of release 1. Without the column the gate alone decides.
+those of pre-release R1. Without the column the gate alone decides.
 """
 import argparse
 import csv

@@ -8,20 +8,30 @@ mosaic (leveling against MOLA laser shots, gap infill, seam repair, cross-tile
 leveling), the per-pixel uncertainty layer and the image footprint product,
 together with the evaluation used in the paper.
 
-The version of the paper is v3 (tag `v3.0.0`). Its model is the network at
-epoch 98 with the B-spline decoder (`mesa_e098.pt`), the model of release v3
+The version of the paper is 1.0.0 (tag `v1.0.0`). Its model is the network at
+epoch 98 with the B-spline decoder (`mesa_e098.pt`), the model of version 1
 of the global DEM (product tag `ta_implicit_d1_spline100s1_e098v3`, predicted
 in October 2026). The decoder upsamples with a fixed degree-4 B-spline and a
 3 x 3 convolution, which removes the 16/8/4/2 px lattice that the transposed
 convolutions of the epoch-88 network left in the output. The epoch-88 network
-(`mesa_e088.pt`), from which release 1 of the mosaic was built, is still
+(`mesa_e088.pt`), from which pre-release R1 of the mosaic was built, is still
 supported. The architecture of each network is given by a configuration in
 `mesa/configs/`. `verification/README.md` records how this code reproduces
 the model, the predictions and the evaluation of the paper.
 
-The product was called MADER until October 2026. Version 1.0.0 of this
-repository was published under that name, and its weight file is
-`mader_e088.pt` (`CHANGELOG.md`).
+The product was called MADER until October 2026. Version 0.1.0 of this
+repository was published under that name as MADER 1.0.0, and its weight file
+is `mader_e088.pt` (`CHANGELOG.md`).
+
+Version names. Version 1 of the global DEM is the first public release. The
+two builds before it, R1 (October 2026, epoch-88 network) and R2, were
+pre-releases. Version 1 was the third build and is called v3 in the names kept
+from production: the directory `v3/`, `PROVENANCE_v3.md`, `VERIFY_v3.md`, the
+product tag `ta_implicit_d1_spline100s1_e098v3`, file and job names such as
+`level_box_tag_v3.sbatch` and `verification/jobs/v3_*.sbatch`, and cluster
+paths. Versions of this code before 1.0.0 are pre-releases. Until 2026-11-12,
+0.1.0 and 0.2.0 were numbered 1.0.0 and 1.1.0, and 1.0.0 was numbered 3.0.0
+(`CHANGELOG.md`).
 
 ## Layout
 
@@ -54,9 +64,9 @@ data/                small inputs the pipeline needs (see below)
 docs/pipeline.md     every step from the inputs to the mosaic, with the settings used
 docs/evaluation.md   the commands behind each table of the paper
 verification/        checks that this code reproduces the results of the paper and the mosaic
-v3/                  the scripts of release v3 of the global DEM as run on the cluster (see "v3 chain" below)
+v3/                  the scripts of version 1 of the global DEM as run on the cluster (see "Production chain of version 1" below)
 PROVENANCE_v3.md     source path and md5 of every file under v3/
-VERIFY_v3.md         replay of one production v3 box from the scripts under v3/
+VERIFY_v3.md         replay of one production box of version 1 from the scripts under v3/
 CHANGELOG.md         changes since the published version
 ```
 
@@ -88,8 +98,8 @@ training archive) are listed in `docs/pipeline.md`. The `data/` directory holds:
 | `images_not_in_mosaic.csv` | the 20 queued placements whose prediction failed, with the reason (docs/pipeline.md, step 4) |
 | `test_pairs.txt` | the 359 test stereo pairs |
 | `test_manifest_{eq,mid,polar}.csv` | the test samples (tile, image) of the 375 pairs from which the test crops are drawn |
-| `test_images.csv` | for each test pair, the CTX image scored whole (the image selected for release 1, kept for the paper), its product tile, latitude, and its image-only co-registration with the full stereo DEM of the pair |
-| `hirise_dems.csv`, `hirise_windows.csv`, `hirise_stereo_pairs.csv` | the 619 HiRISE DEMs, the 1,172 windows (predictions) over them with the outcome of their image co-registration in release 1, and the 149 test pairs over them with their full stereo DEMs, 132 of them scored at 98 DEMs (Tables 3 and 4) |
+| `test_images.csv` | for each test pair, the CTX image scored whole (the image selected for pre-release R1, kept for the paper), its product tile, latitude, and its image-only co-registration with the full stereo DEM of the pair |
+| `hirise_dems.csv`, `hirise_windows.csv`, `hirise_stereo_pairs.csv` | the 619 HiRISE DEMs, the 1,172 windows (predictions) over them with the outcome of their image co-registration in pre-release R1, and the 149 test pairs over them with their full stereo DEMs, 132 of them scored at 98 DEMs (Tables 3 and 4) |
 | `pedr_field_matches.csv` | the image-to-orthoimage matches from which the PEDR field is fitted |
 | `orbit_screen/<tile>.txt` | MOLA passes left out of the leveling of 216 equatorial tiles |
 | `global_ctx_mosaic_fits.csv`, `global_ctx_mosaic_corrections.csv` | offsets between the two CTX reference mosaics, measured and applied |
@@ -97,12 +107,12 @@ training archive) are listed in `docs/pipeline.md`. The `data/` directory holds:
 | `infill_tiles_split.tsv` | the 71 tiles used to train the infill networks, with their split |
 
 Network weights are attached to the release of this repository (`mesa_e098.pt`
-to release v3.0.0; the other files to v1.0.0 and v3.0.0):
+to release v1.0.0; the other files to v0.1.0 and v1.0.0):
 
 | file | content | MD5 |
 |---|---|---|
 | `mesa_e098.pt` | DEM network of the paper, epoch 98, B-spline decoder (24.0 M parameters; configuration `mesa/configs/mesa_e098.json`, also stored in the file) | `997f5f87f3b94c3b304f82fa9e7504b4` |
-| `mesa_e088.pt` | DEM network of release 1 of the mosaic, epoch 88, transposed-convolution decoder (21.8 M parameters; `mesa/configs/mesa_e088.json`). Release v1.0.0 attached this file as `mader_e088.pt`; `mesa.model.load_model` accepts either name and falls back to the other in the same directory | `2c027133a5f95346287015fe2e5b0142` |
+| `mesa_e088.pt` | DEM network of pre-release R1 of the mosaic, epoch 88, transposed-convolution decoder (21.8 M parameters; `mesa/configs/mesa_e088.json`). Release v0.1.0 attached this file as `mader_e088.pt`; `mesa.model.load_model` accepts either name and falls back to the other in the same directory | `2c027133a5f95346287015fe2e5b0142` |
 | `infill_coarse.pt` | coarse infill network (108 m) | `a3630eceaaaaf5033ab7d7e0eb023e45` |
 | `infill_fine.pt` | fine infill network (18 m) | `3b2d9c94557b07191633443dbf13ab68` |
 | `infill_coarse_pretrained.pt` | coarse infill network trained on one tile, the start of the coarse training | `c0dbebeee199e457c3285abb7c7a2b64` |
@@ -121,7 +131,7 @@ The network is built from the configuration stored in the weight file (or
 named after it, `mesa/configs/mesa_e098.json`; `--config` overrides it). The
 prediction is fitted to the MOLA shots through a 168 m FWHM Gaussian
 footprint, the value given in the paper and used by the leveling. The frames
-of the v3 product and the scores of the paper were computed with a 150 m
+of version 1 of the product and the scores of the paper were computed with a 150 m
 footprint; `--footprint 150` reproduces them bit for bit, and the difference
 in the scores is a few millimetres (`verification/README.md`).
 
@@ -141,24 +151,24 @@ polygons) is described in `docs/pipeline.md`, step 10.
 
 `verification/` holds the checks that compare this code with the code and
 products behind the paper, on the same inputs (results in
-`verification/README.md`). For the version of the paper (v3) they cover the
+`verification/README.md`). For the version of the paper (version 1) they cover the
 network, its training steps, the prediction of product frames, and Tables 1,
-3 and 4; for release 1 also the training samples, the registration, the
+3 and 4; for pre-release R1 also the training samples, the registration, the
 mosaic stages, the uncertainty layer and Table 2.
 
-## v3 chain
+## Production chain of version 1
 
-Release v3 of the global DEM (tag `ta_implicit_d1_spline100s1_e098v3`,
+Version 1 of the global DEM (built as v3, tag `ta_implicit_d1_spline100s1_e098v3`,
 predicted in October 2026) was built with the scripts under `v3/`. They were
 copied from the cluster without change. The source path and md5 of every file
 are listed in `PROVENANCE_v3.md`, the settings of each stage in
-`v3/README.md`, and the replay of one production box in `VERIFY_v3.md`. In v3
-the model and the per-box stages after the infill were changed. The `mesa`
-package holds the model of v3 and its prediction (`mesa.predict` with
-`mesa_e098.pt` and `--footprint 150` gives the v3 product frames bit for bit,
+`v3/README.md`, and the replay of one production box in `VERIFY_v3.md`. In
+version 1 the model and the per-box stages after the infill were changed. The
+`mesa` package holds the model of version 1 and its prediction (`mesa.predict` with
+`mesa_e098.pt` and `--footprint 150` gives the product frames of version 1 bit for bit,
 `verification/README.md`) and the evaluation of the paper; for the stages
-after the prediction it remains the readable form of release 1, and the
-scripts under `v3/` are the record of what v3 ran.
+after the prediction it remains the readable form of pre-release R1, and the
+scripts under `v3/` are the record of what version 1 ran.
 
 The stages, in order.
 
@@ -168,14 +178,14 @@ The stages, in order.
    `v3/model/`; the released weights are `mesa_e098.pt`). Its decoder
    upsamples with a fixed B-spline and a 3 x 3 convolution in place of the
    transposed convolutions of epoch 88, which removes the 16/8/4/2 px lattice
-   of release 1. PEDR shots are queried over all longitudes for frames that
+   of pre-release R1. PEDR shots are queried over all longitudes for frames that
    span 360 deg or reach within 2 deg of a pole. A frame whose confidence
    input has a mean below 0.05 is recorded as failed.
 2. Leveling (`v3/downstream/stages/level_box_tag_v3.sbatch`). Frames are
-   leveled and blended as in release 1, with feathered demotion of weak
+   leveled and blended as in pre-release R1, with feathered demotion of weak
    frames and the raster border counted as a data edge. Per-box frame weights
    are in `v3/downstream/weights/`.
-3. CTX layer and infill (`ctx_fill_*_tag_v3.sbatch`). The release-1 networks
+3. CTX layer and infill (`ctx_fill_*_tag_v3.sbatch`). The R1 networks
    and weights are used.
 4. Join (`seamline_merge_v3.py`). All gaps are composited once, in an order
    independent way. Small gaps are shifted to meet the edge.
@@ -186,7 +196,7 @@ The stages, in order.
    The half-offset at hard joints is removed over 32 px.
 6. Seam pass 2 (`pass2_box_tag_v3.sh`). Lines still offset by 20 m or more
    are solved in a 64 px band.
-7. QA (`qa_box_tag_v3.sh`). The box is compared with the release-1 tile by
+7. QA (`qa_box_tag_v3.sh`). The box is compared with the R1 tile by
    step pixels, straight-line cells, PEDR cells and shot MAE. The verdict is
    recorded and never enforced.
 8. Polar comb correction (`v3/polar_combfix80/`), rows Np80 and N-90 only.
@@ -198,7 +208,7 @@ The stages, in order.
    (`MANIFEST.json`, pointer `LATEST.json`). They are resolved per box at
    render time with `resolve_global.py`.
 
-Render rules of v3 (the render launcher is not in this release). Per box,
+Render rules of version 1 (the render launcher is not in this release). Per box,
 `box_dem_<TAG>_deseam_pcf80.tif` is read when it exists and its marker's
 source md5 equals the md5 of the current `box_dem_<TAG>_deseam.tif`.
 Otherwise `box_dem_<TAG>_deseam.tif` is read. A stale pcf80 file is refused
@@ -212,7 +222,7 @@ The north polar cap beyond the data is NoData. Blank-image components
 image and with a ridge of 5 m or more on their outline are NoData. Poleward
 of 80 deg they are kept and flagged.
 
-Error names used for v3, as in the paper (`docs/evaluation.md`), from the
+Error names used for version 1, as in the paper (`docs/evaluation.md`), from the
 most corrected to the least:
 
 * labelMAE: the shape error only. The prediction is rescaled with the mean
@@ -225,7 +235,7 @@ most corrected to the least:
 * deployMAE: the product unaltered in its own frame. Nothing is shifted or
   removed. MOLA is scored only this way.
 
-Product classes and flags of v3 (provenance band and uncertainty layer):
+Product classes and flags of version 1 (provenance band and uncertainty layer):
 
 * NoData: the north polar cap beyond the data, and the blank-image
   components under the rule above.

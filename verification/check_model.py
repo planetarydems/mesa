@@ -13,7 +13,7 @@ The architecture of the released network comes from the packaged
 configuration named after OUT_CHECKPOINT (mesa/configs/mesa_e098.json for
 mesa_e098.pt, mesa_e088.json for mesa_e088.pt or mader_e088.pt), which must
 agree with the run's config.json; it is stored in the checkpoint (key
-'config') unless EMBED_CONFIG=0, which writes the layout of the v1.0.0 asset.
+'config') unless EMBED_CONFIG=0, which writes the layout of the v0.1.0 asset.
 An md5 of the checkpoint is written beside it.
 
 Compares the two networks on random inputs and, if a test manifest is given,

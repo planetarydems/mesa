@@ -5,10 +5,10 @@ numbers of the paper, with the exact settings used. Paths are examples. Steps
 marked *external* use ISIS or the Ames Stereo Pipeline (ASP) and are given as
 commands; everything else is in this package.
 
-This page describes the pipeline of release 1 of the mosaic, with the model
-of the paper (v3, epoch 98) in steps 3 and 4. Release v3 of the mosaic
+This page describes the pipeline of pre-release R1 of the mosaic, with the model
+of the paper (version 1, epoch 98) in steps 3 and 4. Version 1 of the mosaic
 (October 2026) used the same inputs, the epoch-98 network and the stages
-under `v3/`; the README section "v3 chain" and `v3/README.md` list what
+under `v3/`; the README section "Production chain of version 1" and `v3/README.md` list what
 changed after the prediction (join, infill rule, seam repair, polar comb
 correction, reviewed local corrections).
 
@@ -107,7 +107,7 @@ The architecture comes from `--config` (default `mesa/configs/mesa_e098.json`,
 the B-spline decoder). The model of the paper (`mesa_e098.pt`) is epoch 98 of
 a 100-epoch run from scratch with seed 1, the epoch with the lowest validation
 MAE (8.76 m); the run was resumed once from its epoch-74 checkpoint
-(`--resume`). The model of release 1 (`mesa_e088.pt`, `--config
+(`--resume`). The model of pre-release R1 (`mesa_e088.pt`, `--config
 mesa/configs/mesa_e088.json`) is epoch 88 of the same recipe with the
 transposed-convolution decoder (one H200 GPU, about 30 h for 100 epochs;
 validation MAE 8.80 m; resumed after epochs 58 and 88). Training is not
@@ -127,15 +127,15 @@ image registered in that tile.
 The windows of a prediction are fitted to the PEDR shots through a Gaussian
 footprint of 168 m FWHM (`mesa.anchor`), matching Section 2.5, evaluation and
 the leveling of step 5. The frames of both product releases were fitted with
-150 m (`--footprint 150` reproduces the v3 frames bit for bit); the
+150 m (`--footprint 150` reproduces the frames of version 1 bit for bit); the
 footprint sensitivity measurements are in `verification/README.md`. Two
-rules of the v3 prediction apply: PEDR shots are queried over all longitudes
+rules of the prediction of version 1 apply: PEDR shots are queried over all longitudes
 for a frame that spans 360 deg of longitude or reaches within 2 deg of a pole,
 and a frame whose shot-distance input averages below 0.05 is not predicted
 (the shot query failed).
 
 The prediction list of the mosaic held 53,722 placements (tile, image) of
-45,580 CTX images (`data/images.csv` of version 1.0.0). 20 placements failed:
+45,580 CTX images (`data/images.csv` of version 0.1.0). 20 placements failed:
 in 18 the image's part inside the tile is narrower than one 384 px window at
 18 m, in 2 no window has 25 % valid image (`mesa.predict` raises the same
 errors). The mosaic therefore holds 53,702 placements of 45,570 images, the

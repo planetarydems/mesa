@@ -7,22 +7,22 @@ the outputs. "Bitwise" means identical arrays of floating-point numbers.
 (PyTorch 2.0 on V100 GPUs and Xeon CPUs; the registration in the environment of
 the original registration, OpenCV 4.7).
 
-The first section records the checks of version 3.0.0, the version of the
+The first section records the checks of version 1.0.0, the version of the
 paper: the epoch-98 network with the B-spline decoder (`mesa_e098.pt`), the
-frames of release v3 of the global DEM and the evaluation of the paper. The
-sections after it record the checks of release 1 (epoch 88, version 1.0.0)
-and of version 1.1.
+frames of version 1 of the global DEM and the evaluation of the paper. The
+sections after it record the checks of pre-release R1 (epoch 88, version 0.1.0)
+and of version 0.2.
 
-## Version 3.0.0 (November 2026): the model and the evaluation of the paper
+## Version 1.0.0 (November 2026): the model and the evaluation of the paper
 
 The model of the paper is run `ta_impl_spline100_s1_fp32_e098` (checkpoint
 md5 `96de121dea9e271212a93df39d6b7f45`), exported by `check_model.py` to
 `mesa_e098.pt` (md5 `997f5f87f3b94c3b304f82fa9e7504b4`; the weights without
 the unused `mola_weight` scalar and the configuration
 `mesa/configs/mesa_e098.json`). The references are the run's own training
-code (copied with the model), the frames of release v3 of the global DEM
+code (copied with the model), the frames of version 1 of the global DEM
 (`global_run/boxes/<tile>/box_run/preds_ta_implicit_d1_spline100s1_e098v3/`)
-and the manuscript's v3 evaluation (`experiments/v3_manuscript_results_2026-11-05`,
+and the manuscript's evaluation (`experiments/v3_manuscript_results_2026-11-05`,
 results of 2026-11-05). Jobs `jobs/v3_*.sbatch` (SuperCloud jobs
 6202163-6202166, 6202550 and the diagnostic 6203158 on 2026-11-09;
 6213216-6213218 for `hirise_r2`, `tilesenv` and `recheck` on 2026-11-10),
@@ -33,13 +33,13 @@ submitted once by `jobs/v3_submit.sh`, paths in `jobs/v3_env.sh`.
 | network | `check_model.py` (`v3_gpu`) | released network against the network built as the run's `eval_cells.load_model` builds it (config.json, `upsample_mode = spline_conv`, `down_mode = maxpool`): random inputs and 8 test samples, CPU and V100 | bitwise |
 | training | `check_train_steps.py`, `MODEL_CONFIG=mesa_e098` (`v3_gpu`) | loss of each of 4 optimiser steps (CPU) and every weight after them, against the run's trainer | bitwise |
 | prediction | `check_predict.py`, `FOOTPRINT_M=150` (`v3_gpu`, `v3_cpu`) | 3 product frames, re-predicted on the kind of node production used, 5 threads: P18_007966_1361 (Ep040_N-50, V100), P18_007968_2023 (E-020_Np20, Xeon), J06_046962_0925 (E-060_N-90, 86-88 S, PEDR query over all longitudes; Xeon); the DEM, the DEM without the shot fit, and the image and MOLA grids | bitwise (all 12 rasters; the polar frame, 441 windows of which 415 fitted to shots, took 93 min on 5 threads) |
-| Table 1 (tiles) | `run_tiles_chunked.py`, `check_evaluate.py` (`v3_tiles`) | every measure of the 6,396 test samples, CPU, 4 threads per process, against the manuscript's v3 sample table; the Table 1 tile cells, the incidence classes and the consistency between views | same 6,396 samples, the same anchoring and shot count at every sample. In the Python of the manuscript's tile scoring (conda environment `planetary_dtm`: PyTorch 2.5.1, GDAL 3.6.2; `v3_tilesenv`, job 6213217) every sample measure equals the reference at its rounding at all 6,396 samples (labelMAE, alignedMAE, `<1 km` r and amplitude, incidence), the MOLA measures are within 3e-13 and the 33 Table 1 values within 1.1e-14. In the PyTorch 2.0 module environment (`v3_tiles`) 6,391 (labelMAE), 6,171 (alignedMAE), 6,394 (r) and 6,389 (amplitude) of the 6,396 samples match at the reference's rounding and the 33 values are within 3e-5; the production scorer run in that environment gives this code's values (diagnostic job 6203158), so the remaining differences come from the environment |
+| Table 1 (tiles) | `run_tiles_chunked.py`, `check_evaluate.py` (`v3_tiles`) | every measure of the 6,396 test samples, CPU, 4 threads per process, against the manuscript's sample table; the Table 1 tile cells, the incidence classes and the consistency between views | same 6,396 samples, the same anchoring and shot count at every sample. In the Python of the manuscript's tile scoring (conda environment `planetary_dtm`: PyTorch 2.5.1, GDAL 3.6.2; `v3_tilesenv`, job 6213217) every sample measure equals the reference at its rounding at all 6,396 samples (labelMAE, alignedMAE, `<1 km` r and amplitude, incidence), the MOLA measures are within 3e-13 and the 33 Table 1 values within 1.1e-14. In the PyTorch 2.0 module environment (`v3_tiles`) 6,391 (labelMAE), 6,171 (alignedMAE), 6,394 (r) and 6,389 (amplitude) of the 6,396 samples match at the reference's rounding and the 33 values are within 3e-5; the production scorer run in that environment gives this code's values (diagnostic job 6203158), so the remaining differences come from the environment |
 | Table 1 (whole images) | `make_test_images_v3.py`, `check_images.py` (`v3_images`) | `data/test_images.csv` rebuilt from the manuscript's co-registration records; grids, every measure of the 359 pairs, the Table 1 cells and the Section 3.1 statistics | `data/test_images.csv` equals the table rebuilt from the records (`v3_recheck`, job 6213218). Stereo DEM and MOLA grids identical. Prediction grids: 121 pixels in 13 of the 359 pairs differ by at most two float32 spacings (at most 0.49 mm). The manuscript's grids were warped by `gdal.Warp` under GDAL 3.13.2, this code warps with rasterio's bilinear `reproject` under GDAL 3.9.3. At the 6 pairs with the most such pixels, 62 of the 81 lie in the scored area (8.7 to 20.0 million scored pixels per pair) and the in-place MAE agrees to the 9th decimal. Every measure within 2e-12 (relative above 1); every Table 1 cell and Section 3.1 statistic within 1e-12. The verdict line of `check_images.py` reads `IMAGES CHECK DIFF` only because its grid rule allows one float32 spacing |
 | Tables 3 and 4 | `make_hirise_inputs_v3.py`, `check_hirise.py` (`v3_hirise`) | the HiRISE input tables rebuilt from the manuscript's records; every window of the 619 HiRISE DEMs, the per-DEM values, every cell of Tables 3 and 4 and the Section 3.2 numbers | identical: at all 1,172 windows the status, gate, co-registration method, stereo DEM and surfaces are the same and every window measure equals the reference (image shifts within 4e-12 m, ground shifts within 1e-7 m); the 3,273 per-DEM rows equal the reference at its rounding (5e-5); Table 3 (27 cells), Table 4 (119 cells) and the 25 Section 3.2 statements: 0 differ (`hirise_r2`, job 6213216, GDAL 3.6.2). Job 6202550 had scored 1,171 windows; the one window of DTEPC_025901_2460_026455_2460_A01 ran out of memory with 40 workers on the node and was scored alone in `hirise_r2` |
 
 Values of the paper and of this code (medians; m unless stated):
 
-| quantity | paper (v3 manuscript) | this code | difference |
+| quantity | paper (manuscript) | this code | difference |
 |---|---|---|---|
 | tiles: samples / tiles / pairs | 6,396 / 2,878 / 359 | 6,396 / 2,878 / 359 | same samples |
 | tiles: labelMAE | 7.176 | 7.176 | 0 |
@@ -61,14 +61,14 @@ alignedMAE 10.387, `<1 km` r 0.7726 and amplitude 0.7828, error / relief
 4.606 % (job 6202166): alignedMAE +0.010 m and amplitude +0.0005 against the
 150 m of the paper's scores.
 
-## Release 1 (epoch 88; version 1.0.0, October 2026)
+## Pre-release R1 (epoch 88; version 0.1.0, October 2026)
 
 Configuration note of 2026-10-16: prediction, evaluation, leveling and
 verification use the same nominal 168 m FWHM footprint.
 `anchor.PRODUCT_FOOTPRINT_M` is now an alias of `anchor.FOOTPRINT_M`.
 The results below record previous runs; this configuration edit does not
-regenerate their inputs or establish new bitwise agreement. The release-1
-job scripts pass the settings of release 1 explicitly (`FOOTPRINT_M=150`,
+regenerate their inputs or establish new bitwise agreement. The R1
+job scripts pass the settings of pre-release R1 explicitly (`FOOTPRINT_M=150`,
 `RELEASE1_RULES=1`, `EMBED_CONFIG=0`). Use a fresh output directory when
 rerunning checks so cached scores are not reused.
 
@@ -113,21 +113,21 @@ Notes.
   in the environment they were run in (rasterio 1.4.3 with GDAL 3.6.2); the
   rest in PyTorch 2.0 with GDAL 3.9.3.
 
-### Version 1.1 (October 2026)
+### Version 0.2 (October 2026)
 
 * Name. The package is `mesa` (the product was renamed from MADER to MESA);
-  the checks above were run on version 1.0.0 as `mader`. Every module of
-  version 1.1 imports and prints its command-line help in the environments of
+  the checks above were run on version 0.1.0 as `mader`. Every module of
+  version 0.2 imports and prints its command-line help in the environments of
   the checks (`import mesa.<module>`, `python -m mesa.<module> --help`,
   revision job rev8_check 5923013 on xeon-p8, 2026-10-14: all 20 modules import
   and print their help in the `planetary_dtm` environment (Python 3.11.13,
   rasterio 1.4.3, GDAL 3.6.2) and in the `anaconda/2023a-pytorch` module
   environment (Python 3.9.16, PyTorch 2.0.0+cu117)).
-* Shot-anchoring footprint. Version 1.0.0 anchored each prediction window to
+* Shot-anchoring footprint. Version 0.1.0 anchored each prediction window to
   the PEDR shots through a 150 m footprint (`anchor.FOOTPRINT_M = 150`); the
   paper states 168 m and the leveling used 168 m. The released frames (epoch
   88, October 2026) and the paper's tile scoring were computed with 150 m.
-  The initial version 1.1 verification scripts explicitly passed the old
+  The initial version 0.2 verification scripts explicitly passed the old
   150 m value to reproduce those comparisons. As of 2026-10-16 both scripts
   use the common 168 m value; their next results must be recorded separately.
   Effect of the change, measured on 3 whole test images predicted on CPU

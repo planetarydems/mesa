@@ -13,7 +13,7 @@ released model is the epoch with the lowest validation MAE in metres
 
 The architecture comes from --config (default mesa/configs/mesa_e098.json,
 the B-spline decoder of the paper; mesa_e088.json gives the transposed-
-convolution decoder of release 1). It is stored in every checkpoint, so
+convolution decoder of pre-release R1). It is stored in every checkpoint, so
 mesa.model.load_model rebuilds the same network.
 
 An interrupted run continues with --resume runs/mesa/checkpoints/epoch_NNN.pt.

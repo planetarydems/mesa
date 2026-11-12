@@ -373,7 +373,7 @@ class MESA(nn.Module):
 
 CONFIG_DIR = Path(__file__).resolve().parent / 'configs'
 ARCH_KEYS = ('in_channels', 'depths', 'dropout', 'cg_iters', 'upsample_mode', 'down_mode')
-# Released weight files and their configurations. Release v1.0.0 published the
+# Released weight files and their configurations. Release v0.1.0 (published as MADER 1.0.0) published the
 # epoch-88 weights as `mader_e088.pt`; the file is the same as `mesa_e088.pt`.
 RELEASED = {'mesa_e098.pt': 'mesa_e098.json', 'mesa_e088.pt': 'mesa_e088.json', 'mader_e088.pt': 'mesa_e088.json'}
 
@@ -402,7 +402,7 @@ def build(config):
 
 def weights_path(path):
     """The weight file to load. A missing `mesa_e088.pt` falls back to
-    `mader_e088.pt` in the same directory, the name of the v1.0.0 release
+    `mader_e088.pt` in the same directory, the name of the v0.1.0 release
     asset, and the other way round."""
     p = Path(path)
     if p.exists() or p.name not in ('mesa_e088.pt', 'mader_e088.pt'):
@@ -443,7 +443,7 @@ def resolve_config(path, ckpt, config=None):
 def load_model(path, device='cpu', config=None):
     """Build MESA from its configuration (resolve_config) and load the weights:
     a released file (`mesa_e098.pt`, the model of the paper, or `mesa_e088.pt`,
-    also accepted under its v1.0.0 name `mader_e088.pt`) or a file written by
+    also accepted under its v0.1.0 name `mader_e088.pt`) or a file written by
     train.py. Refuses a partial load."""
     p = weights_path(path)
     ckpt = torch.load(p, map_location='cpu', weights_only=False)
