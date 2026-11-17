@@ -1,8 +1,8 @@
 # MESA
 
 Mars Elevation from Shading and Altimetry. Code for *MESA: Mars Elevation from
-Shading and Altimetry* (Mitchell et al., in review), an 18 m digital elevation
-model of Mars from single CTX images: the network, its training, the
+Shading and Altimetry* (Mitchell et al., in preparation), an 18 m digital
+elevation model of Mars from single CTX images: the network, its training, the
 prediction of a DEM from one registered CTX image, the assembly of the global
 mosaic (leveling against MOLA laser shots, gap infill, seam repair, cross-tile
 leveling), the per-pixel uncertainty layer and the image footprint product,
